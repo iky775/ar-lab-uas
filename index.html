@@ -2,9 +2,9 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <title>Simulasi AR Lab - High Quality</title>
+    <title>Simulasi AR Lab - Fixed Interaction</title>
 
-    <!-- A-FRAME Versi Terbaru -->
+    <!-- A-FRAME -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
@@ -14,225 +14,167 @@
     <style>
       body { margin: 0; overflow: hidden; font-family: sans-serif; }
       
-      /* UI: Tombol Zoom */
+      /* UI Controls */
       .ui-controls {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
+        position: fixed; bottom: 20px; right: 20px; z-index: 1000;
+        display: flex; flex-direction: column; gap: 10px;
       }
-      
       .btn-zoom {
-        width: 50px;
-        height: 50px;
-        background: rgba(255, 255, 255, 0.9);
-        border: none;
-        border-radius: 50%;
-        font-size: 24px;
-        font-weight: bold;
-        color: #333;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-        cursor: pointer;
+        width: 50px; height: 50px; background: rgba(255, 255, 255, 0.9);
+        border: none; border-radius: 50%; font-size: 24px; font-weight: bold;
+        color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer;
       }
-      .btn-zoom:active { transform: scale(0.95); background: #eee; }
+      .btn-zoom:active { background: #ccc; }
 
-      /* UI: Modal Info (Pop-up) */
+      /* Modal Info */
       #infoModal {
-        display: none;
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        width: 100%;
-        background: white;
-        border-radius: 20px 20px 0 0;
-        padding: 20px;
-        box-sizing: border-box;
-        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
-        z-index: 2000;
+        display: none; position: fixed; bottom: 0; left: 0; width: 100%;
+        background: white; border-radius: 20px 20px 0 0; padding: 25px;
+        box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+        z-index: 9999; /* Z-Index sangat tinggi agar tidak tertutup */
         animation: slideUp 0.3s ease-out;
       }
-      
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
       .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1c40f; padding-bottom: 10px; }
       .modal-title { font-size: 18px; font-weight: bold; color: #2c3e50; margin: 0; }
-      .close-btn { background: none; border: none; font-size: 24px; color: #e74c3c; cursor: pointer; }
+      .close-btn { background: none; border: none; font-size: 28px; color: #e74c3c; cursor: pointer; font-weight: bold; }
       
-      .spec-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-      .status-badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 12px; }
+      .spec-row { margin-bottom: 8px; font-size: 14px; color: #333; }
+      .status-badge { padding: 4px 10px; border-radius: 5px; color: white; font-weight: bold; font-size: 12px; }
       .bg-green { background: #2ecc71; }
       .bg-red { background: #e74c3c; }
 
-      /* Loading Screen */
+      /* Loader */
       .arjs-loader {
-        height: 100%; width: 100%; position: absolute;
-        top: 0; left: 0; background-color: rgba(0, 0, 0, 0.8);
-        z-index: 9999; display: flex; justify-content: center; align-items: center;
+        height: 100%; width: 100%; position: absolute; top: 0; left: 0;
+        background-color: rgba(0, 0, 0, 0.8); z-index: 9999;
+        display: flex; justify-content: center; align-items: center;
       }
-      .arjs-loader div {
-        text-align: center; font-size: 1.25em; color: white;
-      }
+      .arjs-loader div { text-align: center; font-size: 1.25em; color: white; }
     </style>
 
-    <!-- SCRIPT KHUSUS UNTUK INTERAKSI KLIK (Component) -->
+    <!-- LOGIKA KLIK (COMPONENT) -->
     <script>
-      AFRAME.registerComponent('cursor-listener', {
+      AFRAME.registerComponent('click-handler', {
         init: function () {
-          this.el.addEventListener('click', function (evt) {
-            // Ambil ID dari atribut data-key
-            const assetId = this.getAttribute('data-key');
-            // Panggil fungsi showData
-            showData(assetId);
+          // Listen untuk 'click' (Desktop/Mobile standard)
+          this.el.addEventListener('click', (evt) => {
+            const id = this.el.getAttribute('data-key');
+            
+            // 1. VISUAL FEEDBACK: Ubah warna bola jadi BIRU sebentar
+            this.el.setAttribute('material', 'color', 'blue');
+            setTimeout(() => {
+              this.el.setAttribute('material', 'color', 'yellow'); // Balik kuning
+            }, 500);
+
+            // 2. SYSTEM ALERT: Munculkan pesan sistem (Pasti muncul jika terklik)
+            // alert("Objek " + id + " Terdeteksi!"); // Hapus // jika ingin debug kasar
+
+            // 3. Panggil Modal
+            showData(id);
           });
         }
       });
     </script>
   </head>
 
-  <body style="margin: 0; overflow: hidden;">
-    <!-- Loader saat membuka web -->
-    <div class="arjs-loader">
-      <div>Memuat Model Lab...<br>Silakan Tunggu</div>
-    </div>
+  <body>
+    <div class="arjs-loader"><div>Memuat AR Lab...</div></div>
 
-    <!-- UI Controls (Zoom) -->
+    <!-- UI Zoom -->
     <div class="ui-controls">
       <button class="btn-zoom" onclick="zoomIn()">+</button>
       <button class="btn-zoom" onclick="zoomOut()">-</button>
     </div>
 
-    <!-- Modal Informasi Aset -->
+    <!-- Pop-up Informasi -->
     <div id="infoModal">
       <div class="modal-header">
-        <h3 class="modal-title" id="modalTitle">Nama Aset</h3>
+        <h3 class="modal-title" id="modalTitle">Info Aset</h3>
         <button class="close-btn" onclick="closeModal()">&times;</button>
       </div>
-      <div id="modalContent">
-        <!-- Isi konten dari JS -->
-      </div>
+      <div id="modalContent"></div>
     </div>
 
-    <!-- AR SCENE -->
-    <!-- colorManagement: true bikin warna lebih cerah/nyata -->
+    <!-- AR Scene -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-      renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;"
-      vr-mode-ui="enabled: false"
-    >
+      renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+      vr-mode-ui="enabled: false">
       
-      <!-- CURSOR & RAYCASTER (Wajib agar bisa diklik) -->
-      <!-- Menggunakan mouse cursor agar touch di HP terdeteksi sebagai click -->
-      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
+      <!-- CURSOR WAJIB: rayOrigin: mouse penting untuk HP -->
+      <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable"></a-entity>
 
-      <!-- LIGHTING (PENCERAH GAMBAR) -->
-      <!-- Ambient: Cahaya dasar rata -->
-      <a-light type="ambient" intensity="1.2" color="#ffffff"></a-light>
-      <!-- Directional: Cahaya matahari tiruan agar ada bayangan & dimensi -->
-      <a-light type="directional" position="5 10 7" intensity="1.5" castShadow="true"></a-light>
+      <!-- LIGHTING -->
+      <a-light type="ambient" intensity="1"></a-light>
+      <a-light type="directional" position="5 10 7" intensity="1.5"></a-light>
 
       <!-- MARKER -->
-      <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+      <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true">
         
-        <!-- CONTAINER MODEL (Untuk Zooming) -->
+        <!-- Container Model -->
         <a-entity id="modelContainer" scale="1 1 1">
             
-            <!-- MODEL 3D UTAMA -->
-            <!-- Scale disesuaikan lagi jika terlalu besar/kecil -->
-            <a-entity 
-              id="labModel"
-              gltf-model="Riki.glb" 
-              position="0 0 0" 
-              scale="0.3 0.3 0.3">
-            </a-entity>
+            <a-entity id="labModel" gltf-model="Riki.glb" position="0 0 0" scale="0.3 0.3 0.3"></a-entity>
 
-            <!-- --- TITIK INTERAKSI (HITBOXES) --- -->
-            <!-- PERBAIKAN: Menggunakan component 'cursor-listener' dan 'data-key' -->
-
-            <!-- Titik 1: Server / PC Dosen -->
+            <!-- BOLA INTERAKSI -->
+            <!-- Saya perbesar radius jadi 0.25 agar gampang dipencet -->
+            
+            <!-- Bola 1 (Server) -->
             <a-sphere 
-              class="clickable"
-              cursor-listener
+              class="clickable" 
+              click-handler 
               data-key="server"
               position="0 0.5 0" 
-              radius="0.15"
-              color="yellow"
+              radius="0.25" 
+              color="yellow" 
               opacity="0.8"
-              animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000">
+              animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000">
             </a-sphere>
 
-            <!-- Titik 2: PC Siswa -->
+            <!-- Bola 2 (PC Siswa) -->
             <a-sphere 
-              class="clickable"
-              cursor-listener
+              class="clickable" 
+              click-handler 
               data-key="pc1"
               position="1 0.5 0.5" 
-              radius="0.15"
-              color="#00ff00"
+              radius="0.25" 
+              color="#00ff00" 
               opacity="0.8">
             </a-sphere>
 
         </a-entity>
-
       </a-marker>
+      
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      // --- DATABASE ASET ---
+      // Database
       const db = {
-        'server': {
-          name: "Server Instruktur (Dosen)",
-          spec: "Core i9, 64GB RAM, RTX 4090",
-          status: "ONLINE",
-          color: "bg-green"
-        },
-        'pc1': {
-          name: "PC Mahasiswa 01",
-          spec: "Core i5, 16GB RAM, Integrated GFX",
-          status: "OFFLINE",
-          color: "bg-red"
-        }
+        'server': { name: "Server Dosen", spec: "Xeon E5, 64GB RAM", status: "ONLINE", bg: "bg-green" },
+        'pc1': { name: "PC Siswa 01", spec: "Core i5, 8GB RAM", status: "MAINTENANCE", bg: "bg-red" }
       };
 
-      // --- LOGIKA ZOOM ---
+      // Zoom Logic
       let scale = 1;
-      const container = document.getElementById('modelContainer');
+      function zoomIn() { scale += 0.1; updateScale(); }
+      function zoomOut() { if(scale > 0.2) scale -= 0.1; updateScale(); }
+      function updateScale() { document.getElementById('modelContainer').setAttribute('scale', `${scale} ${scale} ${scale}`); }
 
-      function zoomIn() {
-        scale += 0.1;
-        updateScale();
-      }
-
-      function zoomOut() {
-        if (scale > 0.2) scale -= 0.1;
-        updateScale();
-      }
-
-      function updateScale() {
-        container.setAttribute('scale', `${scale} ${scale} ${scale}`);
-      }
-
-      // --- LOGIKA POP-UP DATA ---
-      // Fungsi ini sekarang dipanggil oleh component 'cursor-listener'
+      // Show Data Logic
       window.showData = function(id) {
-        console.log("Bola diklik: " + id); // Untuk debugging di console
         const data = db[id];
         const modal = document.getElementById('infoModal');
-        
         if (data) {
           document.getElementById('modalTitle').innerText = data.name;
           document.getElementById('modalContent').innerHTML = `
-            <div class="spec-row"><span>Spesifikasi:</span> <strong>${data.spec}</strong></div>
-            <div class="spec-row"><span>Status:</span> <span class="status-badge ${data.color}">${data.status}</span></div>
-            <div style="margin-top:10px; font-size:12px; color:gray;">Terakhir dicek: Hari ini</div>
+            <div class="spec-row"><strong>Spesifikasi:</strong><br>${data.spec}</div>
+            <div class="spec-row"><strong>Status:</strong> <span class="status-badge ${data.bg}">${data.status}</span></div>
           `;
           modal.style.display = 'block';
-        } else {
-          console.error("Data tidak ditemukan untuk ID:", id);
         }
       }
 
@@ -240,10 +182,12 @@
         document.getElementById('infoModal').style.display = 'none';
       }
 
-      // Hilangkan Loader saat scene siap
-      document.querySelector('a-scene').addEventListener('loaded', function () {
-        const loader = document.querySelector('.arjs-loader');
-        if(loader) loader.style.display = 'none';
+      // Hide Loader
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          const loader = document.querySelector('.arjs-loader');
+          if(loader) loader.style.display = 'none';
+        }, 1500);
       });
     </script>
   </body>
