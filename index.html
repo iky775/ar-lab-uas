@@ -8,19 +8,12 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-    />
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
     <style>
-      body {
-        margin: 0;
-        overflow: hidden;
-        font-family: sans-serif;
-      }
-
+      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      
       /* UI: Tombol Zoom */
       .ui-controls {
         position: fixed;
@@ -31,7 +24,7 @@
         flex-direction: column;
         gap: 10px;
       }
-
+      
       .btn-zoom {
         width: 50px;
         height: 50px;
@@ -41,13 +34,10 @@
         font-size: 24px;
         font-weight: bold;
         color: #333;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         cursor: pointer;
       }
-      .btn-zoom:active {
-        transform: scale(0.95);
-        background: #eee;
-      }
+      .btn-zoom:active { transform: scale(0.95); background: #eee; }
 
       /* UI: Modal Info (Pop-up) */
       #infoModal {
@@ -60,87 +50,52 @@
         border-radius: 20px 20px 0 0;
         padding: 20px;
         box-sizing: border-box;
-        box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 -5px 15px rgba(0,0,0,0.2);
         z-index: 2000;
         animation: slideUp 0.3s ease-out;
       }
+      
+      @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
-      @keyframes slideUp {
-        from {
-          transform: translateY(100%);
-        }
-        to {
-          transform: translateY(0);
-        }
-      }
-
-      .modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #f1c40f;
-        padding-bottom: 10px;
-      }
-      .modal-title {
-        font-size: 18px;
-        font-weight: bold;
-        color: #2c3e50;
-        margin: 0;
-      }
-      .close-btn {
-        background: none;
-        border: none;
-        font-size: 24px;
-        color: #e74c3c;
-        cursor: pointer;
-      }
-
-      .spec-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 8px;
-        font-size: 14px;
-      }
-      .status-badge {
-        padding: 4px 8px;
-        border-radius: 4px;
-        color: white;
-        font-weight: bold;
-        font-size: 12px;
-      }
-      .bg-green {
-        background: #2ecc71;
-      }
-      .bg-red {
-        background: #e74c3c;
-      }
+      .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1c40f; padding-bottom: 10px; }
+      .modal-title { font-size: 18px; font-weight: bold; color: #2c3e50; margin: 0; }
+      .close-btn { background: none; border: none; font-size: 24px; color: #e74c3c; cursor: pointer; }
+      
+      .spec-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+      .status-badge { padding: 4px 8px; border-radius: 4px; color: white; font-weight: bold; font-size: 12px; }
+      .bg-green { background: #2ecc71; }
+      .bg-red { background: #e74c3c; }
 
       /* Loading Screen */
       .arjs-loader {
-        height: 100%;
-        width: 100%;
-        position: absolute;
-        top: 0;
-        left: 0;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 9999;
-        display: flex;
-        justify-content: center;
-        align-items: center;
+        height: 100%; width: 100%; position: absolute;
+        top: 0; left: 0; background-color: rgba(0, 0, 0, 0.8);
+        z-index: 9999; display: flex; justify-content: center; align-items: center;
       }
       .arjs-loader div {
-        text-align: center;
-        font-size: 1.25em;
-        color: white;
+        text-align: center; font-size: 1.25em; color: white;
       }
     </style>
+
+    <!-- SCRIPT KHUSUS UNTUK INTERAKSI KLIK (Component) -->
+    <script>
+      AFRAME.registerComponent('cursor-listener', {
+        init: function () {
+          this.el.addEventListener('click', function (evt) {
+            // Ambil ID dari atribut data-key
+            const assetId = this.getAttribute('data-key');
+            // Panggil fungsi showData
+            showData(assetId);
+          });
+        }
+      });
+    </script>
   </head>
 
-  <body style="margin: 0; overflow: hidden">
+  <body style="margin: 0; overflow: hidden;">
     <!-- Loader saat membuka web -->
     <div class="arjs-loader">
-      <div>Memuat Model Lab...<br />Silakan Tunggu</div>
+      <div>Memuat Model Lab...<br>Silakan Tunggu</div>
     </div>
 
     <!-- UI Controls (Zoom) -->
@@ -168,74 +123,60 @@
       renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;"
       vr-mode-ui="enabled: false"
     >
+      
       <!-- CURSOR & RAYCASTER (Wajib agar bisa diklik) -->
-      <a-entity
-        cursor="rayOrigin: mouse"
-        raycaster="objects: .clickable"
-      ></a-entity>
+      <!-- Menggunakan mouse cursor agar touch di HP terdeteksi sebagai click -->
+      <a-entity cursor="rayOrigin: mouse" raycaster="objects: .clickable"></a-entity>
 
       <!-- LIGHTING (PENCERAH GAMBAR) -->
       <!-- Ambient: Cahaya dasar rata -->
       <a-light type="ambient" intensity="1.2" color="#ffffff"></a-light>
       <!-- Directional: Cahaya matahari tiruan agar ada bayangan & dimensi -->
-      <a-light
-        type="directional"
-        position="5 10 7"
-        intensity="1.5"
-        castShadow="true"
-      ></a-light>
+      <a-light type="directional" position="5 10 7" intensity="1.5" castShadow="true"></a-light>
 
       <!-- MARKER -->
-      <a-marker
-        type="pattern"
-        url="marker-lab.patt"
-        id="marker"
-        smooth="true"
-        smoothCount="10"
-        smoothTolerance="0.01"
-        smoothThreshold="5"
-      >
+      <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
+        
         <!-- CONTAINER MODEL (Untuk Zooming) -->
         <a-entity id="modelContainer" scale="1 1 1">
-          <!-- MODEL 3D UTAMA -->
-          <!-- Scale disesuaikan lagi jika terlalu besar/kecil -->
-          <a-entity
-            id="labModel"
-            gltf-model="Riki.glb"
-            position="0 0 0"
-            scale="0.3 0.3 0.3"
-          >
-          </a-entity>
+            
+            <!-- MODEL 3D UTAMA -->
+            <!-- Scale disesuaikan lagi jika terlalu besar/kecil -->
+            <a-entity 
+              id="labModel"
+              gltf-model="Riki.glb" 
+              position="0 0 0" 
+              scale="0.3 0.3 0.3">
+            </a-entity>
 
-          <!-- --- TITIK INTERAKSI (HITBOXES) --- -->
-          <!-- SAYA UBAH JADI BOLA KUNING AGAR TERLIHAT DULU -->
-          <!-- Jika sudah pas posisinya, ubah visible="false" -->
+            <!-- --- TITIK INTERAKSI (HITBOXES) --- -->
+            <!-- PERBAIKAN: Menggunakan component 'cursor-listener' dan 'data-key' -->
 
-          <!-- Titik 1: Server / PC Dosen -->
-          <!-- Ganti position="x y z" sampai pas di meja dosen -->
-          <a-sphere
-            class="clickable"
-            position="0 0.5 0"
-            radius="0.15"
-            color="yellow"
-            opacity="0.8"
-            animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000"
-            onclick="showData('server')"
-          >
-          </a-sphere>
+            <!-- Titik 1: Server / PC Dosen -->
+            <a-sphere 
+              class="clickable"
+              cursor-listener
+              data-key="server"
+              position="0 0.5 0" 
+              radius="0.15"
+              color="yellow"
+              opacity="0.8"
+              animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000">
+            </a-sphere>
 
-          <!-- Titik 2: PC Siswa -->
-          <!-- Ganti position="x y z" sampai pas di meja siswa -->
-          <a-sphere
-            class="clickable"
-            position="1 0.5 0.5"
-            radius="0.15"
-            color="#00ff00"
-            opacity="0.8"
-            onclick="showData('pc1')"
-          >
-          </a-sphere>
+            <!-- Titik 2: PC Siswa -->
+            <a-sphere 
+              class="clickable"
+              cursor-listener
+              data-key="pc1"
+              position="1 0.5 0.5" 
+              radius="0.15"
+              color="#00ff00"
+              opacity="0.8">
+            </a-sphere>
+
         </a-entity>
+
       </a-marker>
       <a-entity camera></a-entity>
     </a-scene>
@@ -243,23 +184,23 @@
     <script>
       // --- DATABASE ASET ---
       const db = {
-        server: {
+        'server': {
           name: "Server Instruktur (Dosen)",
           spec: "Core i9, 64GB RAM, RTX 4090",
           status: "ONLINE",
-          color: "bg-green",
+          color: "bg-green"
         },
-        pc1: {
+        'pc1': {
           name: "PC Mahasiswa 01",
           spec: "Core i5, 16GB RAM, Integrated GFX",
           status: "OFFLINE",
-          color: "bg-red",
-        },
+          color: "bg-red"
+        }
       };
 
       // --- LOGIKA ZOOM ---
       let scale = 1;
-      const container = document.getElementById("modelContainer");
+      const container = document.getElementById('modelContainer');
 
       function zoomIn() {
         scale += 0.1;
@@ -272,32 +213,37 @@
       }
 
       function updateScale() {
-        container.setAttribute("scale", `${scale} ${scale} ${scale}`);
+        container.setAttribute('scale', `${scale} ${scale} ${scale}`);
       }
 
       // --- LOGIKA POP-UP DATA ---
-      function showData(id) {
+      // Fungsi ini sekarang dipanggil oleh component 'cursor-listener'
+      window.showData = function(id) {
+        console.log("Bola diklik: " + id); // Untuk debugging di console
         const data = db[id];
-        const modal = document.getElementById("infoModal");
-
+        const modal = document.getElementById('infoModal');
+        
         if (data) {
-          document.getElementById("modalTitle").innerText = data.name;
-          document.getElementById("modalContent").innerHTML = `
+          document.getElementById('modalTitle').innerText = data.name;
+          document.getElementById('modalContent').innerHTML = `
             <div class="spec-row"><span>Spesifikasi:</span> <strong>${data.spec}</strong></div>
             <div class="spec-row"><span>Status:</span> <span class="status-badge ${data.color}">${data.status}</span></div>
             <div style="margin-top:10px; font-size:12px; color:gray;">Terakhir dicek: Hari ini</div>
           `;
-          modal.style.display = "block";
+          modal.style.display = 'block';
+        } else {
+          console.error("Data tidak ditemukan untuk ID:", id);
         }
       }
 
-      function closeModal() {
-        document.getElementById("infoModal").style.display = "none";
+      window.closeModal = function() {
+        document.getElementById('infoModal').style.display = 'none';
       }
 
       // Hilangkan Loader saat scene siap
-      document.querySelector("a-scene").addEventListener("loaded", function () {
-        document.querySelector(".arjs-loader").style.display = "none";
+      document.querySelector('a-scene').addEventListener('loaded', function () {
+        const loader = document.querySelector('.arjs-loader');
+        if(loader) loader.style.display = 'none';
       });
     </script>
   </body>
