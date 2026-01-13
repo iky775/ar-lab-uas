@@ -19,6 +19,7 @@
         margin: 0;
         overflow: hidden;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        touch-action: none; /* PENTING: Mencegah scroll saat swipe rotasi */
       }
 
       /* UI Controls Container */
@@ -183,7 +184,7 @@
         },
       });
 
-      // 2. KOMPONEN ROTASI (SWIPE GESTURE)
+      // 2. KOMPONEN ROTASI (SWIPE GESTURE - TOUCH & MOUSE)
       AFRAME.registerComponent("rotate-on-touch", {
         schema: {
           speed: { default: 0.5 }, // Kecepatan putar
@@ -193,37 +194,57 @@
           this.startX = 0;
           this.currentRotationY = 0;
 
-          // Event Listeners pada Scene (Layar Penuh)
-          this.el.sceneEl.addEventListener(
-            "touchstart",
-            this.onTouchStart.bind(this)
-          );
-          this.el.sceneEl.addEventListener(
-            "touchmove",
-            this.onTouchMove.bind(this)
-          );
-          this.el.sceneEl.addEventListener(
-            "touchend",
-            this.onTouchEnd.bind(this)
-          );
+          // Bind functions agar 'this' tetap mengacu pada komponen
+          this.onStart = this.onStart.bind(this);
+          this.onMove = this.onMove.bind(this);
+          this.onEnd = this.onEnd.bind(this);
+
+          // Event Listeners pada Scene (Support Touch & Mouse)
+          const scene = this.el.sceneEl;
+          
+          // Touch Events
+          scene.addEventListener("touchstart", this.onStart);
+          scene.addEventListener("touchmove", this.onMove);
+          scene.addEventListener("touchend", this.onEnd);
+
+          // Mouse Events (Untuk Desktop/Laptop)
+          scene.addEventListener("mousedown", this.onStart);
+          scene.addEventListener("mousemove", this.onMove);
+          scene.addEventListener("mouseup", this.onEnd);
         },
 
-        onTouchStart: function (evt) {
-          // Hanya jika 1 jari (agar tidak konflik dengan zoom native browser jika ada)
-          if (evt.touches.length === 1) {
-            this.isDragging = true;
-            this.startX = evt.touches[0].clientX;
-            // Simpan rotasi saat ini
-            const rotation = this.el.getAttribute("rotation");
-            this.currentRotationY = rotation.y;
+        onStart: function (evt) {
+          // Deteksi apakah input dari Touch atau Mouse
+          let clientX;
+          if (evt.touches) {
+             // Touch: Hanya jika 1 jari
+             if (evt.touches.length !== 1) return;
+             clientX = evt.touches[0].clientX;
+          } else {
+             // Mouse
+             clientX = evt.clientX;
           }
+
+          this.isDragging = true;
+          this.startX = clientX;
+          
+          // Ambil rotasi saat ini
+          const rotation = this.el.getAttribute("rotation");
+          this.currentRotationY = rotation.y;
         },
 
-        onTouchMove: function (evt) {
+        onMove: function (evt) {
           if (!this.isDragging) return;
 
-          const currentX = evt.touches[0].clientX;
-          const deltaX = currentX - this.startX; // Jarak geser pixel
+          let clientX;
+          if (evt.touches) {
+             evt.preventDefault(); // Mencegah scroll layar HP saat memutar
+             clientX = evt.touches[0].clientX;
+          } else {
+             clientX = evt.clientX;
+          }
+
+          const deltaX = clientX - this.startX; // Jarak geser pixel
 
           // Update Rotasi Y
           const newRotationY = this.currentRotationY + deltaX * this.data.speed;
@@ -235,12 +256,22 @@
           });
         },
 
-        onTouchEnd: function () {
+        onEnd: function () {
           this.isDragging = false;
           // Simpan posisi terakhir agar tidak reset saat sentuh lagi
           const rotation = this.el.getAttribute("rotation");
           this.currentRotationY = rotation.y;
         },
+
+        remove: function() {
+          const scene = this.el.sceneEl;
+          scene.removeEventListener("touchstart", this.onStart);
+          scene.removeEventListener("touchmove", this.onMove);
+          scene.removeEventListener("touchend", this.onEnd);
+          scene.removeEventListener("mousedown", this.onStart);
+          scene.removeEventListener("mousemove", this.onMove);
+          scene.removeEventListener("mouseup", this.onEnd);
+        }
       });
     </script>
   </head>
@@ -250,7 +281,7 @@
     <div class="arjs-loader"><div>Memuat AR Lab...</div></div>
 
     <!-- Hint -->
-    <div class="gesture-hint">Geser layar kiri/kanan untuk memutar</div>
+    <div class="gesture-hint">Geser/Klik layar kiri-kanan untuk memutar</div>
 
     <!-- UI Zoom Buttons -->
     <div class="ui-controls">
@@ -319,60 +350,57 @@
                z = Dekat Kamera/Maju (+) / Jauh/Mundur (-)
           ============================ -->
 
-          <!-- 1. SERVER (Kuning) -->
+          <!-- 1. SERVER (Kuning) - Letakkan di POJOK BELAKANG KANAN -->
           <a-sphere
             class="clickable"
             click-handler
             data-key="server"
-            position="0 0.5 0" 
+            position="1.5 0.5 -1.5" 
             radius="0.25"
             color="#f1c40f"
             opacity="0.9"
             animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000"
           ></a-sphere>
 
-          <!-- 2. PC SISWA KANAN (Hijau) -->
+          <!-- 2. PC SISWA KANAN (Hijau) - Di Samping Kanan Tengah -->
           <a-sphere
             class="clickable"
             click-handler
             data-key="pc1"
-            position="1 0.5 0.5"
+            position="1.5 0.6 0.5"
             radius="0.25"
             color="#2ecc71"
             opacity="0.9"
           ></a-sphere>
 
-          <!-- 3. PC SISWA KIRI (Baru - Biru Muda) -->
-          <!-- Sesuaikan 'position' x menjadi minus agar di kiri -->
+          <!-- 3. PC SISWA KIRI (Biru Muda) - Di Samping Kiri Tengah -->
           <a-sphere
             class="clickable"
             click-handler
             data-key="pc2"
-            position="-1 0.5 0.5"
+            position="-1.5 0.6 0.5"
             radius="0.25"
             color="#3498db"
             opacity="0.9"
           ></a-sphere>
 
-          <!-- 4. KURSI (Baru - Merah) -->
-          <!-- Posisi agak di depan (z lebih besar) dan agak bawah (y lebih kecil) -->
+          <!-- 4. KURSI (Merah) - Di Belakang Tengah -->
           <a-sphere
             class="clickable"
             click-handler
             data-key="chair"
-            position="0 0.3 1.2"
+            position="0 0.3 1.5"
             radius="0.2"
             color="#e74c3c"
             opacity="0.9"
           ></a-sphere>
 
-          <!-- 5. MEJA COKLAT TENGAH (Baru - Oranye) -->
-          <!-- Posisi di tengah (x=0) agak depan server (z=0.6) -->
+          <!-- 5. MEJA COKLAT TENGAH (Oranye) - Tepat di Tengah Ruangan -->
           <a-sphere
             class="clickable"
             click-handler
             data-key="table"
-            position="0 0.4 0.6"
+            position="0 0.5 0"
             radius="0.2"
             color="#e67e22"
             opacity="0.9"
