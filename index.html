@@ -12,36 +12,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
     <style>
-      body { margin: 0; overflow: hidden; font-family: sans-serif; }
+      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
       
-      /* UI Controls */
+      /* UI Controls Container */
       .ui-controls {
-        position: fixed; bottom: 20px; right: 20px; z-index: 1000;
-        display: flex; flex-direction: column; gap: 10px;
+        position: fixed; 
+        bottom: 20px; 
+        right: 20px; 
+        z-index: 1000;
+        display: flex; 
+        flex-direction: column; 
+        gap: 10px;
+        pointer-events: auto; /* Tombol bisa diklik */
       }
+
+      /* Zoom Buttons */
       .btn-zoom {
-        width: 50px; height: 50px; background: rgba(255, 255, 255, 0.9);
-        border: none; border-radius: 50%; font-size: 24px; font-weight: bold;
-        color: #333; box-shadow: 0 4px 6px rgba(0,0,0,0.3); cursor: pointer;
+        width: 50px; height: 50px; 
+        background: rgba(255, 255, 255, 0.9);
+        border: none; border-radius: 50%; 
+        font-size: 24px; font-weight: bold;
+        color: #333; 
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        transition: transform 0.1s;
       }
-      .btn-zoom:active { background: #ccc; }
+      .btn-zoom:active { transform: scale(0.9); background: #eee; }
 
       /* Modal Info */
       #infoModal {
-        display: none; position: fixed; bottom: 0; left: 0; width: 100%;
-        background: white; border-radius: 20px 20px 0 0; padding: 25px;
-        box-sizing: border-box; box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
-        z-index: 9999; /* Z-Index sangat tinggi agar tidak tertutup */
+        display: none; 
+        position: fixed; 
+        bottom: 0; left: 0; width: 100%;
+        background: white; 
+        border-radius: 20px 20px 0 0; 
+        padding: 25px;
+        box-sizing: border-box; 
+        box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
+        z-index: 2000; /* Z-Index sangat tinggi */
         animation: slideUp 0.3s ease-out;
       }
+      
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
       .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 2px solid #f1c40f; padding-bottom: 10px; }
-      .modal-title { font-size: 18px; font-weight: bold; color: #2c3e50; margin: 0; }
-      .close-btn { background: none; border: none; font-size: 28px; color: #e74c3c; cursor: pointer; font-weight: bold; }
+      .modal-title { font-size: 20px; font-weight: 700; color: #2c3e50; margin: 0; }
+      .close-btn { background: none; border: none; font-size: 32px; color: #e74c3c; cursor: pointer; line-height: 1; }
       
-      .spec-row { margin-bottom: 8px; font-size: 14px; color: #333; }
-      .status-badge { padding: 4px 10px; border-radius: 5px; color: white; font-weight: bold; font-size: 12px; }
+      .spec-row { margin-bottom: 12px; font-size: 15px; color: #333; line-height: 1.4; }
+      .status-badge { padding: 4px 10px; border-radius: 5px; color: white; font-weight: bold; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
       .bg-green { background: #2ecc71; }
       .bg-red { background: #e74c3c; }
 
@@ -51,44 +71,107 @@
         background-color: rgba(0, 0, 0, 0.8); z-index: 9999;
         display: flex; justify-content: center; align-items: center;
       }
-      .arjs-loader div { text-align: center; font-size: 1.25em; color: white; }
+      .arjs-loader div { text-align: center; font-size: 1.25em; color: white; font-weight: bold; }
+      
+      /* Instruksi Gesture */
+      .gesture-hint {
+        position: fixed; top: 20px; width: 100%; text-align: center;
+        color: rgba(255,255,255,0.7); pointer-events: none; z-index: 500;
+        font-size: 14px; text-shadow: 1px 1px 2px black;
+      }
     </style>
 
-    <!-- LOGIKA KLIK (COMPONENT) -->
+    <!-- A-FRAME COMPONENTS -->
     <script>
+      // 1. KOMPONEN KLIK (INTERAKSI OBJEK)
       AFRAME.registerComponent('click-handler', {
         init: function () {
-          // Listen untuk 'click' (Desktop/Mobile standard)
+          // Gunakan 'click' event (A-Frame menangani touch-to-click mapping)
           this.el.addEventListener('click', (evt) => {
             const id = this.el.getAttribute('data-key');
+            console.log("Clicked:", id); // Debugging di Console
+
+            // Efek Visual (Flash Biru)
+            const oldColor = this.el.getAttribute('material').color;
+            this.el.setAttribute('material', 'color', '#3498db'); // Biru
             
-            // 1. VISUAL FEEDBACK: Ubah warna bola jadi BIRU sebentar
-            this.el.setAttribute('material', 'color', 'blue');
             setTimeout(() => {
-              this.el.setAttribute('material', 'color', 'yellow'); // Balik kuning
-            }, 500);
+              this.el.setAttribute('material', 'color', oldColor);
+            }, 300);
 
-            // 2. SYSTEM ALERT: Munculkan pesan sistem (Pasti muncul jika terklik)
-            // alert("Objek " + id + " Terdeteksi!"); // Hapus // jika ingin debug kasar
-
-            // 3. Panggil Modal
+            // Tampilkan Modal
             showData(id);
           });
+        }
+      });
+
+      // 2. KOMPONEN ROTASI (SWIPE GESTURE)
+      AFRAME.registerComponent('rotate-on-touch', {
+        schema: {
+          speed: { default: 0.5 } // Kecepatan putar
+        },
+        init: function () {
+          this.isDragging = false;
+          this.startX = 0;
+          this.currentRotationY = 0;
+
+          // Event Listeners pada Scene (Layar Penuh)
+          this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
+          this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
+          this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
+        },
+        
+        onTouchStart: function (evt) {
+          // Hanya jika 1 jari (agar tidak konflik dengan zoom native browser jika ada)
+          if (evt.touches.length === 1) {
+            this.isDragging = true;
+            this.startX = evt.touches[0].clientX;
+            // Simpan rotasi saat ini
+            const rotation = this.el.getAttribute('rotation');
+            this.currentRotationY = rotation.y;
+          }
+        },
+
+        onTouchMove: function (evt) {
+          if (!this.isDragging) return;
+          
+          const currentX = evt.touches[0].clientX;
+          const deltaX = currentX - this.startX; // Jarak geser pixel
+          
+          // Update Rotasi Y
+          const newRotationY = this.currentRotationY + (deltaX * this.data.speed);
+          
+          this.el.setAttribute('rotation', {
+            x: 0,
+            y: newRotationY,
+            z: 0
+          });
+        },
+
+        onTouchEnd: function () {
+          this.isDragging = false;
+          // Simpan posisi terakhir agar tidak reset saat sentuh lagi
+          const rotation = this.el.getAttribute('rotation');
+          this.currentRotationY = rotation.y;
         }
       });
     </script>
   </head>
 
   <body>
+    <!-- Overlay Loading -->
     <div class="arjs-loader"><div>Memuat AR Lab...</div></div>
+    
+    <!-- Hint -->
+    <div class="gesture-hint">Geser layar kiri/kanan untuk memutar</div>
 
-    <!-- UI Zoom -->
+    <!-- UI Zoom Buttons -->
     <div class="ui-controls">
       <button class="btn-zoom" onclick="zoomIn()">+</button>
       <button class="btn-zoom" onclick="zoomOut()">-</button>
     </div>
 
-    <!-- Pop-up Informasi -->
+    <!-- Modal Informasi -->
     <div id="infoModal">
       <div class="modal-header">
         <h3 class="modal-title" id="modalTitle">Info Aset</h3>
@@ -97,30 +180,38 @@
       <div id="modalContent"></div>
     </div>
 
-    <!-- AR Scene -->
+    <!-- SCENE AR -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
       renderer="logarithmicDepthBuffer: true; colorManagement: true;"
       vr-mode-ui="enabled: false">
       
-      <!-- CURSOR WAJIB: rayOrigin: mouse penting untuk HP -->
+      <!-- 
+        CURSOR WAJIB: 
+        1. rayOrigin: mouse (mengubah sentuhan layar jadi raycast)
+        2. raycaster: objects (hanya deteksi objek dengan class .clickable agar performa ringan)
+      -->
       <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable"></a-entity>
 
       <!-- LIGHTING -->
-      <a-light type="ambient" intensity="1"></a-light>
-      <a-light type="directional" position="5 10 7" intensity="1.5"></a-light>
+      <a-light type="ambient" intensity="1.2"></a-light>
+      <a-light type="directional" position="3 5 2" intensity="1.5"></a-light>
 
       <!-- MARKER -->
-      <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true">
+      <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
         
-        <!-- Container Model -->
-        <a-entity id="modelContainer" scale="1 1 1">
+        <!-- 
+          CONTAINER UTAMA:
+          Komponen 'rotate-on-touch' ditempel di sini agar seluruh isi marker berputar.
+        -->
+        <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
             
+            <!-- Model 3D (Pastikan nama file sesuai) -->
+            <!-- Jika model gelap, mainkan posisi light atau ganti shader jadi 'flat' untuk debug -->
             <a-entity id="labModel" gltf-model="Riki.glb" position="0 0 0" scale="0.3 0.3 0.3"></a-entity>
 
             <!-- BOLA INTERAKSI -->
-            <!-- Saya perbesar radius jadi 0.25 agar gampang dipencet -->
             
             <!-- Bola 1 (Server) -->
             <a-sphere 
@@ -129,10 +220,12 @@
               data-key="server"
               position="0 0.5 0" 
               radius="0.25" 
-              color="yellow" 
-              opacity="0.8"
+              color="#f1c40f" 
+              opacity="0.9"
               animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000">
             </a-sphere>
+            <!-- Teks label di atas bola -->
+            <a-text value="Server" position="0 0.9 0" align="center" scale="2 2 2" color="white" look-at="[camera]"></a-text>
 
             <!-- Bola 2 (PC Siswa) -->
             <a-sphere 
@@ -141,8 +234,8 @@
               data-key="pc1"
               position="1 0.5 0.5" 
               radius="0.25" 
-              color="#00ff00" 
-              opacity="0.8">
+              color="#2ecc71" 
+              opacity="0.9">
             </a-sphere>
 
         </a-entity>
@@ -151,30 +244,57 @@
       <a-entity camera></a-entity>
     </a-scene>
 
+    <!-- LOGIKA JAVASCRIPT UI -->
     <script>
-      // Database
+      // Database Data
       const db = {
-        'server': { name: "Server Dosen", spec: "Xeon E5, 64GB RAM", status: "ONLINE", bg: "bg-green" },
-        'pc1': { name: "PC Siswa 01", spec: "Core i5, 8GB RAM", status: "MAINTENANCE", bg: "bg-red" }
+        'server': { name: "Server Dosen (Main)", spec: "Intel Xeon E5-2600<br>64GB DDR4 ECC RAM<br>2TB NVMe SSD", status: "ONLINE", bg: "bg-green" },
+        'pc1': { name: "Workstation Siswa 01", spec: "Intel Core i5-12400F<br>16GB RAM<br>GTX 1650 4GB", status: "MAINTENANCE", bg: "bg-red" }
       };
 
       // Zoom Logic
       let scale = 1;
-      function zoomIn() { scale += 0.1; updateScale(); }
-      function zoomOut() { if(scale > 0.2) scale -= 0.1; updateScale(); }
-      function updateScale() { document.getElementById('modelContainer').setAttribute('scale', `${scale} ${scale} ${scale}`); }
+      const modelContainer = document.getElementById('modelContainer');
+
+      function zoomIn() { 
+        if(scale < 3) {
+          scale += 0.2; 
+          updateScale(); 
+        }
+      }
+      
+      function zoomOut() { 
+        if(scale > 0.2) {
+          scale -= 0.2; 
+          updateScale(); 
+        }
+      }
+      
+      function updateScale() { 
+        if(modelContainer) {
+          modelContainer.setAttribute('scale', `${scale} ${scale} ${scale}`); 
+        }
+      }
 
       // Show Data Logic
       window.showData = function(id) {
         const data = db[id];
         const modal = document.getElementById('infoModal');
+        
         if (data) {
           document.getElementById('modalTitle').innerText = data.name;
           document.getElementById('modalContent').innerHTML = `
-            <div class="spec-row"><strong>Spesifikasi:</strong><br>${data.spec}</div>
-            <div class="spec-row"><strong>Status:</strong> <span class="status-badge ${data.bg}">${data.status}</span></div>
+            <div class="spec-row">
+                <div style="margin-bottom:4px; color:#7f8c8d; font-size:12px;">SPESIFIKASI</div>
+                <strong>${data.spec}</strong>
+            </div>
+            <div class="spec-row" style="margin-top:15px;">
+                <span class="status-badge ${data.bg}">${data.status}</span>
+            </div>
           `;
           modal.style.display = 'block';
+        } else {
+            console.warn("Data ID tidak ditemukan:", id);
         }
       }
 
@@ -184,10 +304,12 @@
 
       // Hide Loader
       window.addEventListener('load', () => {
-        setTimeout(() => {
-          const loader = document.querySelector('.arjs-loader');
-          if(loader) loader.style.display = 'none';
-        }, 1500);
+        const loader = document.querySelector('.arjs-loader');
+        if(loader) {
+            setTimeout(() => {
+                loader.style.display = 'none';
+            }, 2000); // Sedikit lebih lama agar aset siap
+        }
       });
     </script>
   </body>
