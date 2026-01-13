@@ -303,8 +303,7 @@
           Komponen 'rotate-on-touch' ditempel di sini agar seluruh isi marker berputar.
         -->
         <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
-          <!-- Model 3D (Pastikan nama file sesuai) -->
-          <!-- Jika model gelap, mainkan posisi light atau ganti shader jadi 'flat' untuk debug -->
+          <!-- Model 3D -->
           <a-entity
             id="labModel"
             gltf-model="Riki.glb"
@@ -312,18 +311,15 @@
             scale="0.3 0.3 0.3"
           ></a-entity>
 
-          <!-- BOLA INTERAKSI -->
+          <!-- ============================
+               BOLA INTERAKSI
+               Tips Mengatur Posisi (position="x y z"):
+               x = Kanan (+) / Kiri (-)
+               y = Atas (+) / Bawah (-)
+               z = Dekat Kamera/Maju (+) / Jauh/Mundur (-)
+          ============================ -->
 
-          <!-- Bola 1 (Server) -->
-          <!-- 
-             TIPS POSISI: 
-             Ubah position="x y z" di bawah ini.
-             x: Kiri (-) / Kanan (+)
-             y: Bawah (-) / Atas (+)
-             z: Jauh (-) / Dekat (+)
-             
-             Contoh: position="0.5 0.5 0" berarti geser kanan 0.5, naik 0.5.
-          -->
+          <!-- 1. SERVER (Kuning) -->
           <a-sphere
             class="clickable"
             click-handler
@@ -333,11 +329,9 @@
             color="#f1c40f"
             opacity="0.9"
             animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000"
-          >
-          </a-sphere>
-          <!-- SAYA SUDAH MENGHAPUS <a-text> DI SINI AGAR TULISAN HILANG -->
+          ></a-sphere>
 
-          <!-- Bola 2 (PC Siswa) -->
+          <!-- 2. PC SISWA KANAN (Hijau) -->
           <a-sphere
             class="clickable"
             click-handler
@@ -346,8 +340,44 @@
             radius="0.25"
             color="#2ecc71"
             opacity="0.9"
-          >
-          </a-sphere>
+          ></a-sphere>
+
+          <!-- 3. PC SISWA KIRI (Baru - Biru Muda) -->
+          <!-- Sesuaikan 'position' x menjadi minus agar di kiri -->
+          <a-sphere
+            class="clickable"
+            click-handler
+            data-key="pc2"
+            position="-1 0.5 0.5"
+            radius="0.25"
+            color="#3498db"
+            opacity="0.9"
+          ></a-sphere>
+
+          <!-- 4. KURSI (Baru - Merah) -->
+          <!-- Posisi agak di depan (z lebih besar) dan agak bawah (y lebih kecil) -->
+          <a-sphere
+            class="clickable"
+            click-handler
+            data-key="chair"
+            position="0 0.3 1.2"
+            radius="0.2"
+            color="#e74c3c"
+            opacity="0.9"
+          ></a-sphere>
+
+          <!-- 5. MEJA COKLAT TENGAH (Baru - Oranye) -->
+          <!-- Posisi di tengah (x=0) agak depan server (z=0.6) -->
+          <a-sphere
+            class="clickable"
+            click-handler
+            data-key="table"
+            position="0 0.4 0.6"
+            radius="0.2"
+            color="#e67e22"
+            opacity="0.9"
+          ></a-sphere>
+
         </a-entity>
       </a-marker>
 
@@ -356,7 +386,7 @@
 
     <!-- LOGIKA JAVASCRIPT UI -->
     <script>
-      // Database Data
+      // Database Data (Update untuk aset baru)
       const db = {
         server: {
           name: "Server Dosen (Main)",
@@ -369,6 +399,24 @@
           spec: "Intel Core i5-12400F<br>16GB RAM<br>GTX 1650 4GB",
           status: "MAINTENANCE",
           bg: "bg-red",
+        },
+        pc2: {
+          name: "Workstation Siswa 02",
+          spec: "Intel Core i5-12400F<br>16GB RAM<br>GTX 1650 4GB",
+          status: "ONLINE",
+          bg: "bg-green",
+        },
+        chair: {
+          name: "Kursi Lab Ergonomis",
+          spec: "Bahan: Mesh Fabric<br>Fitur: Height Adjustable<br>Kondisi: Baik",
+          status: "TERSEDIA",
+          bg: "bg-green",
+        },
+        table: {
+          name: "Meja Diskusi Tengah",
+          spec: "Bahan: Kayu Mahoni<br>Dimensi: 200x100cm<br>Kapasitas: 6 Orang",
+          status: "AKTIF",
+          bg: "bg-green",
         },
       };
 
