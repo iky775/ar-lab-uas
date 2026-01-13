@@ -8,11 +8,14 @@
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <!-- AR.js -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+    <!-- A-Frame Look-At Component (agar teks selalu menghadap kamera) -->
+    <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 
     <style>
-      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+      /* Penting: touch-action: none agar swipe tidak menggeser halaman browser */
+      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; touch-action: none; }
       
       /* UI Controls Container */
       .ui-controls {
@@ -86,18 +89,24 @@
       // 1. KOMPONEN KLIK (INTERAKSI OBJEK)
       AFRAME.registerComponent('click-handler', {
         init: function () {
-          // Gunakan 'click' event (A-Frame menangani touch-to-click mapping)
+          // Listen 'click' event
           this.el.addEventListener('click', (evt) => {
             const id = this.el.getAttribute('data-key');
-            console.log("Clicked:", id); // Debugging di Console
+            console.log("Clicked:", id); 
 
-            // Efek Visual (Flash Biru)
-            const oldColor = this.el.getAttribute('material').color;
-            this.el.setAttribute('material', 'color', '#3498db'); // Biru
-            
-            setTimeout(() => {
-              this.el.setAttribute('material', 'color', oldColor);
-            }, 300);
+            // LOGIKA VISUAL: Cari bola visual di sebelah hitbox ini
+            // Struktur: Parent -> [VisualStick, VisualSphere, Hitbox(this)]
+            const parent = this.el.parentNode;
+            const visualSphere = parent.querySelector('.visual-sphere');
+
+            if (visualSphere) {
+                // Efek Visual (Flash Biru pada bola)
+                const oldColor = visualSphere.getAttribute('material').color;
+                visualSphere.setAttribute('material', 'color', '#3498db'); // Biru
+                setTimeout(() => {
+                  visualSphere.setAttribute('material', 'color', oldColor);
+                }, 300);
+            }
 
             // Tampilkan Modal
             showData(id);
@@ -105,28 +114,36 @@
         }
       });
 
-      // 2. KOMPONEN ROTASI (SWIPE GESTURE)
+      // 2. KOMPONEN ROTASI (SWIPE GESTURE) - DIPERBAIKI
       AFRAME.registerComponent('rotate-on-touch', {
         schema: {
-          speed: { default: 0.5 } // Kecepatan putar
+          speed: { default: 0.8 } // Sedikit dipercepat
         },
         init: function () {
           this.isDragging = false;
           this.startX = 0;
           this.currentRotationY = 0;
 
-          // Event Listeners pada Scene (Layar Penuh)
-          this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
-          this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
-          this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
+          // Event Listeners pada Scene
+          const canvas = this.el.sceneEl.canvas;
+          
+          // Menggunakan canvas event listener agar lebih akurat
+          if (canvas) {
+              canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
+              canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
+              canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
+          } else {
+              // Fallback jika canvas belum siap
+              this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
+              this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
+              this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
+          }
         },
         
         onTouchStart: function (evt) {
-          // Hanya jika 1 jari (agar tidak konflik dengan zoom native browser jika ada)
           if (evt.touches.length === 1) {
             this.isDragging = true;
             this.startX = evt.touches[0].clientX;
-            // Simpan rotasi saat ini
             const rotation = this.el.getAttribute('rotation');
             this.currentRotationY = rotation.y;
           }
@@ -135,10 +152,11 @@
         onTouchMove: function (evt) {
           if (!this.isDragging) return;
           
-          const currentX = evt.touches[0].clientX;
-          const deltaX = currentX - this.startX; // Jarak geser pixel
+          // Mencegah scroll browser saat memutar model
+          evt.preventDefault(); 
           
-          // Update Rotasi Y
+          const currentX = evt.touches[0].clientX;
+          const deltaX = currentX - this.startX;
           const newRotationY = this.currentRotationY + (deltaX * this.data.speed);
           
           this.el.setAttribute('rotation', {
@@ -150,7 +168,6 @@
 
         onTouchEnd: function () {
           this.isDragging = false;
-          // Simpan posisi terakhir agar tidak reset saat sentuh lagi
           const rotation = this.el.getAttribute('rotation');
           this.currentRotationY = rotation.y;
         }
@@ -189,8 +206,8 @@
       
       <!-- 
         CURSOR WAJIB: 
-        1. rayOrigin: mouse (mengubah sentuhan layar jadi raycast)
-        2. raycaster: objects (hanya deteksi objek dengan class .clickable agar performa ringan)
+        rayOrigin: mouse membuat layar HP responsif terhadap sentuhan.
+        raycaster: objects hanya mendeteksi class .clickable.
       -->
       <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable"></a-entity>
 
@@ -201,42 +218,51 @@
       <!-- MARKER -->
       <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
         
-        <!-- 
-          CONTAINER UTAMA:
-          Komponen 'rotate-on-touch' ditempel di sini agar seluruh isi marker berputar.
-        -->
+        <!-- CONTAINER UTAMA (Yang bisa diputar) -->
         <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
             
-            <!-- Model 3D (Pastikan nama file sesuai) -->
-            <!-- Jika model gelap, mainkan posisi light atau ganti shader jadi 'flat' untuk debug -->
+            <!-- Model 3D -->
             <a-entity id="labModel" gltf-model="Riki.glb" position="0 0 0" scale="0.3 0.3 0.3"></a-entity>
 
-            <!-- BOLA INTERAKSI -->
-            
-            <!-- Bola 1 (Server) -->
-            <a-sphere 
-              class="clickable" 
-              click-handler 
-              data-key="server"
-              position="0 0.5 0" 
-              radius="0.25" 
-              color="#f1c40f" 
-              opacity="0.9"
-              animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000">
-            </a-sphere>
-            <!-- Teks label di atas bola -->
-            <a-text value="Server" position="0 0.9 0" align="center" scale="2 2 2" color="white" look-at="[camera]"></a-text>
+            <!-- 
+               MARKER 1: SERVER 
+               Posisi: 0, 0, 0 (Dasar lantai)
+            -->
+            <a-entity position="0 0 0">
+                <!-- 1. Tiang Putih -->
+                <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
+                
+                <!-- 2. Bola Visual (Kuning) -->
+                <a-sphere class="visual-sphere" color="#f1c40f" radius="0.15" position="0 0.5 0" 
+                          animation="property: position; to: 0 0.55 0; dir: alternate; loop: true; dur: 1000"></a-sphere>
+                
+                <!-- 3. HITBOX TRANSPARAN (Area klik besar) -->
+                <!-- Ini yang mendeteksi klik. Radius 0.25 lebih mudah disentuh dari 0.02 -->
+                <a-cylinder class="clickable" click-handler data-key="server" 
+                            color="red" height="0.6" radius="0.25" position="0 0.3 0" 
+                            material="opacity: 0; transparent: true"></a-cylinder>
+                
+                <!-- Label Teks -->
+                <a-text value="Server" position="0 0.8 0" align="center" scale="2 2 2" color="white" look-at="[camera]"></a-text>
+            </a-entity>
 
-            <!-- Bola 2 (PC Siswa) -->
-            <a-sphere 
-              class="clickable" 
-              click-handler 
-              data-key="pc1"
-              position="1 0.5 0.5" 
-              radius="0.25" 
-              color="#2ecc71" 
-              opacity="0.9">
-            </a-sphere>
+
+            <!-- 
+               MARKER 2: PC SISWA 
+               Posisi: 1, 0, 0.5
+            -->
+            <a-entity position="1 0 0.5">
+                <!-- 1. Tiang Putih -->
+                <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
+                
+                <!-- 2. Bola Visual (Hijau) -->
+                <a-sphere class="visual-sphere" color="#2ecc71" radius="0.15" position="0 0.5 0"></a-sphere>
+                
+                <!-- 3. HITBOX TRANSPARAN (Area klik besar) -->
+                <a-cylinder class="clickable" click-handler data-key="pc1" 
+                            color="red" height="0.6" radius="0.25" position="0 0.3 0" 
+                            material="opacity: 0; transparent: true"></a-cylinder>
+            </a-entity>
 
         </a-entity>
       </a-marker>
@@ -308,7 +334,7 @@
         if(loader) {
             setTimeout(() => {
                 loader.style.display = 'none';
-            }, 2000); // Sedikit lebih lama agar aset siap
+            }, 2000); 
         }
       });
     </script>
