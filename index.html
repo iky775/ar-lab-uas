@@ -1,12 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <title>Simulasi AR Lab RBC</title>
+    <title>Simulasi AR Lab - High Quality</title>
 
+    <!-- A-FRAME Versi Terbaru -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <!-- AR.js -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <script src="https://raw.githack.com/donmccurdy/aframe-extras/master/dist/aframe-extras.loaders.min.js"></script>
 
     <meta
       name="viewport"
@@ -14,101 +15,56 @@
     />
 
     <style>
-      /* --- CSS UI BAWAAN ANDA (DIPERTAHANKAN) --- */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        -webkit-tap-highlight-color: transparent;
-      }
       body {
         margin: 0;
         overflow: hidden;
-        background: black;
-        font-family: "Segoe UI", Roboto, sans-serif;
-        color: white;
+        font-family: sans-serif;
       }
 
-      #statusBar {
-        position: fixed;
-        top: 15px;
-        left: 15px;
-        right: 15px;
-        background: rgba(20, 20, 20, 0.85);
-        backdrop-filter: blur(8px);
-        border-radius: 50px;
-        padding: 10px 20px;
-        z-index: 9999;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 14px;
-        border: 1px solid rgba(46, 204, 113, 0.3);
-      }
-      .status-dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #ff4757;
-        box-shadow: 0 0 5px #ff4757;
-        margin-right: 8px;
-      }
-      .status-dot.active {
-        background: #2ecc71;
-        box-shadow: 0 0 8px #2ecc71;
-      }
-
-      #controlPanel {
+      /* UI: Tombol Zoom */
+      .ui-controls {
         position: fixed;
         bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 95%;
-        max-width: 420px;
-        z-index: 9999;
-      }
-      .rotation-controls {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        right: 20px;
+        z-index: 1000;
+        display: flex;
+        flex-direction: column;
         gap: 10px;
-        margin-bottom: 15px;
-      }
-      .rotation-btn {
-        background: #f1c40f;
-        border: none;
-        border-radius: 12px;
-        color: #2c3e50;
-        height: 55px;
-        font-size: 22px;
-        cursor: pointer;
-        box-shadow: 0 4px 0 #d35400;
-      }
-      .rotation-btn:active {
-        transform: translateY(4px);
-        box-shadow: none;
-      }
-      .rotation-btn.reset,
-      .rotation-btn.hide-ui {
-        background: #2ecc71;
-        color: white;
-        box-shadow: 0 4px 0 #27ae60;
       }
 
-      /* --- CSS TAMBAHAN UNTUK MODAL DATA ASET (SIMULASI) --- */
-      #assetModal {
+      .btn-zoom {
+        width: 50px;
+        height: 50px;
+        background: rgba(255, 255, 255, 0.9);
+        border: none;
+        border-radius: 50%;
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        cursor: pointer;
+      }
+      .btn-zoom:active {
+        transform: scale(0.95);
+        background: #eee;
+      }
+
+      /* UI: Modal Info (Pop-up) */
+      #infoModal {
         display: none;
         position: fixed;
         bottom: 0;
         left: 0;
-        right: 0;
+        width: 100%;
         background: white;
-        color: #333;
-        border-radius: 25px 25px 0 0;
-        padding: 25px;
-        z-index: 10002;
-        box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.5);
+        border-radius: 20px 20px 0 0;
+        padding: 20px;
+        box-sizing: border-box;
+        box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.2);
+        z-index: 2000;
         animation: slideUp 0.3s ease-out;
       }
+
       @keyframes slideUp {
         from {
           transform: translateY(100%);
@@ -118,247 +74,231 @@
         }
       }
 
-      .asset-header {
+      .modal-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 15px;
         border-bottom: 2px solid #f1c40f;
         padding-bottom: 10px;
-        margin-bottom: 15px;
       }
-      .asset-header h2 {
-        margin: 0;
-        font-size: 20px;
+      .modal-title {
+        font-size: 18px;
+        font-weight: bold;
         color: #2c3e50;
+        margin: 0;
       }
-      .asset-info p {
-        margin-bottom: 8px;
-        font-size: 15px;
-        display: flex;
-        justify-content: space-between;
-      }
-      .badge-status {
-        padding: 4px 10px;
-        border-radius: 5px;
-        font-weight: bold;
-        font-size: 12px;
-        color: white;
-      }
-      .status-ok {
-        background: #2ecc71;
-      }
-      .status-maint {
-        background: #e74c3c;
-      }
-
-      .close-asset-btn {
-        width: 100%;
-        margin-top: 20px;
-        padding: 15px;
-        background: #2c3e50;
-        color: white;
+      .close-btn {
+        background: none;
         border: none;
-        border-radius: 12px;
-        font-weight: bold;
-        font-size: 16px;
+        font-size: 24px;
+        color: #e74c3c;
         cursor: pointer;
       }
 
-      /* Font Awesome */
-      @import url("https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css");
+      .spec-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 14px;
+      }
+      .status-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: white;
+        font-weight: bold;
+        font-size: 12px;
+      }
+      .bg-green {
+        background: #2ecc71;
+      }
+      .bg-red {
+        background: #e74c3c;
+      }
+
+      /* Loading Screen */
+      .arjs-loader {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 9999;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+      }
+      .arjs-loader div {
+        text-align: center;
+        font-size: 1.25em;
+        color: white;
+      }
     </style>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
   </head>
 
-  <body>
-    <div id="statusBar">
-      <div style="display: flex; align-items: center">
-        <div class="status-dot" id="statusDot"></div>
-        <span id="statusText">Scan Marker Lab</span>
-      </div>
-      <div id="markerStatus">RBC Simulator</div>
+  <body style="margin: 0; overflow: hidden">
+    <!-- Loader saat membuka web -->
+    <div class="arjs-loader">
+      <div>Memuat Model Lab...<br />Silakan Tunggu</div>
     </div>
 
-    <div id="assetModal">
-      <div class="asset-header">
-        <h2 id="assetName">Nama Aset</h2>
-        <i class="fas fa-server" style="color: #f1c40f; font-size: 20px"></i>
-      </div>
-      <div class="asset-info" id="assetContent"></div>
-      <button class="close-asset-btn" onclick="closeAsset()">
-        Tutup Informasi
-      </button>
+    <!-- UI Controls (Zoom) -->
+    <div class="ui-controls">
+      <button class="btn-zoom" onclick="zoomIn()">+</button>
+      <button class="btn-zoom" onclick="zoomOut()">-</button>
     </div>
 
-    <div id="controlPanel">
-      <div class="rotation-controls">
-        <button class="rotation-btn" onclick="rotateUp()">
-          <i class="fas fa-arrow-up"></i>
-        </button>
-        <button class="rotation-btn reset" onclick="resetRotation()">
-          <i class="fas fa-sync-alt"></i>
-        </button>
-        <button class="rotation-btn" onclick="rotateDown()">
-          <i class="fas fa-arrow-down"></i>
-        </button>
-        <button class="rotation-btn" onclick="rotateLeft()">
-          <i class="fas fa-arrow-left"></i>
-        </button>
-        <button class="rotation-btn hide-ui" onclick="toggleUI()">
-          <i class="fas fa-eye"></i>
-        </button>
-        <button class="rotation-btn" onclick="rotateRight()">
-          <i class="fas fa-arrow-right"></i>
-        </button>
+    <!-- Modal Informasi Aset -->
+    <div id="infoModal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalTitle">Nama Aset</h3>
+        <button class="close-btn" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modalContent">
+        <!-- Isi konten dari JS -->
       </div>
     </div>
 
+    <!-- AR SCENE -->
+    <!-- colorManagement: true bikin warna lebih cerah/nyata -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-      renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+      renderer="logarithmicDepthBuffer: true; colorManagement: true; physicallyCorrectLights: true;"
       vr-mode-ui="enabled: false"
     >
+      <!-- CURSOR & RAYCASTER (Wajib agar bisa diklik) -->
       <a-entity
         cursor="rayOrigin: mouse"
         raycaster="objects: .clickable"
       ></a-entity>
 
-      <a-light type="ambient" intensity="0.7"></a-light>
-      <a-light type="directional" position="10 10 5" intensity="1"></a-light>
+      <!-- LIGHTING (PENCERAH GAMBAR) -->
+      <!-- Ambient: Cahaya dasar rata -->
+      <a-light type="ambient" intensity="1.2" color="#ffffff"></a-light>
+      <!-- Directional: Cahaya matahari tiruan agar ada bayangan & dimensi -->
+      <a-light
+        type="directional"
+        position="5 10 7"
+        intensity="1.5"
+        castShadow="true"
+      ></a-light>
 
+      <!-- MARKER -->
       <a-marker
         type="pattern"
         url="marker-lab.patt"
         id="marker"
         smooth="true"
         smoothCount="10"
+        smoothTolerance="0.01"
+        smoothThreshold="5"
       >
-        <a-entity
-          id="myModel"
-          gltf-model="Riki.glb"
-          position="0 0 0"
-          rotation="0 0 0"
-          scale="0.3 0.3 0.3"
-        >
+        <!-- CONTAINER MODEL (Untuk Zooming) -->
+        <a-entity id="modelContainer" scale="1 1 1">
+          <!-- MODEL 3D UTAMA -->
+          <!-- Scale disesuaikan lagi jika terlalu besar/kecil -->
+          <a-entity
+            id="labModel"
+            gltf-model="Riki.glb"
+            position="0 0 0"
+            scale="0.3 0.3 0.3"
+          >
+          </a-entity>
+
+          <!-- --- TITIK INTERAKSI (HITBOXES) --- -->
+          <!-- SAYA UBAH JADI BOLA KUNING AGAR TERLIHAT DULU -->
+          <!-- Jika sudah pas posisinya, ubah visible="false" -->
+
+          <!-- Titik 1: Server / PC Dosen -->
+          <!-- Ganti position="x y z" sampai pas di meja dosen -->
+          <a-sphere
+            class="clickable"
+            position="0 0.5 0"
+            radius="0.15"
+            color="yellow"
+            opacity="0.8"
+            animation="property: scale; to: 1.2 1.2 1.2; dir: alternate; loop: true; dur: 1000"
+            onclick="showData('server')"
+          >
+          </a-sphere>
+
+          <!-- Titik 2: PC Siswa -->
+          <!-- Ganti position="x y z" sampai pas di meja siswa -->
+          <a-sphere
+            class="clickable"
+            position="1 0.5 0.5"
+            radius="0.15"
+            color="#00ff00"
+            opacity="0.8"
+            onclick="showData('pc1')"
+          >
+          </a-sphere>
         </a-entity>
-
-        <a-box
-          class="clickable"
-          position="0 0.5 0"
-          scale="0.5 0.5 0.5"
-          material="color: red; opacity: 0.3; transparent: true"
-          animation="property: opacity; to: 0.1; dir: alternate; loop: true; dur: 1000"
-          onclick="showAssetData('server')"
-        >
-        </a-box>
-
-        <a-box
-          class="clickable"
-          position="1 0.5 0.5"
-          scale="0.4 0.4 0.4"
-          material="color: blue; opacity: 0.3; transparent: true"
-          onclick="showAssetData('pc_siswa')"
-        >
-        </a-box>
       </a-marker>
       <a-entity camera></a-entity>
     </a-scene>
 
     <script>
-      // --- 1. DATABASE SIMULASI (JSON) ---
-      const databaseLab = {
+      // --- DATABASE ASET ---
+      const db = {
         server: {
-          name: "Server Utama (Dosen)",
-          ip: "192.168.1.1",
-          spec: "Intel Xeon, RAM 32GB",
+          name: "Server Instruktur (Dosen)",
+          spec: "Core i9, 64GB RAM, RTX 4090",
           status: "ONLINE",
-          statusType: "ok",
+          color: "bg-green",
         },
-        pc_siswa: {
-          name: "Workstation Siswa-01",
-          ip: "192.168.1.10",
-          spec: "Intel i5, RAM 16GB, RTX 3060",
-          status: "MAINTENANCE",
-          statusType: "maint",
+        pc1: {
+          name: "PC Mahasiswa 01",
+          spec: "Core i5, 16GB RAM, Integrated GFX",
+          status: "OFFLINE",
+          color: "bg-red",
         },
       };
 
-      // --- 2. LOGIKA INTERAKSI ---
-      function showAssetData(id) {
-        const data = databaseLab[id];
-        const modal = document.getElementById("assetModal");
-        const nameEl = document.getElementById("assetName");
-        const contentEl = document.getElementById("assetContent");
+      // --- LOGIKA ZOOM ---
+      let scale = 1;
+      const container = document.getElementById("modelContainer");
+
+      function zoomIn() {
+        scale += 0.1;
+        updateScale();
+      }
+
+      function zoomOut() {
+        if (scale > 0.2) scale -= 0.1;
+        updateScale();
+      }
+
+      function updateScale() {
+        container.setAttribute("scale", `${scale} ${scale} ${scale}`);
+      }
+
+      // --- LOGIKA POP-UP DATA ---
+      function showData(id) {
+        const data = db[id];
+        const modal = document.getElementById("infoModal");
 
         if (data) {
-          nameEl.innerText = data.name;
-          contentEl.innerHTML = `
-            <p><strong>IP Address:</strong> <span>${data.ip}</span></p>
-            <p><strong>Spesifikasi:</strong> <span>${data.spec}</span></p>
-            <p><strong>Status:</strong> <span class="badge-status ${
-              data.statusType === "ok" ? "status-ok" : "status-maint"
-            }">${data.status}</span></p>
+          document.getElementById("modalTitle").innerText = data.name;
+          document.getElementById("modalContent").innerHTML = `
+            <div class="spec-row"><span>Spesifikasi:</span> <strong>${data.spec}</strong></div>
+            <div class="spec-row"><span>Status:</span> <span class="status-badge ${data.color}">${data.status}</span></div>
+            <div style="margin-top:10px; font-size:12px; color:gray;">Terakhir dicek: Hari ini</div>
           `;
           modal.style.display = "block";
-          vibrate();
         }
       }
 
-      function closeAsset() {
-        document.getElementById("assetModal").style.display = "none";
+      function closeModal() {
+        document.getElementById("infoModal").style.display = "none";
       }
 
-      // --- 3. LOGIKA SYSTEM (ROTASI DLL - TETAP SAMA) ---
-      const model = document.getElementById("myModel");
-      const marker = document.getElementById("marker");
-      const statusDot = document.getElementById("statusDot");
-      const statusText = document.getElementById("statusText");
-
-      marker.addEventListener("markerFound", () => {
-        statusText.textContent = "Marker Terdeteksi";
-        statusDot.className = "status-dot active";
+      // Hilangkan Loader saat scene siap
+      document.querySelector("a-scene").addEventListener("loaded", function () {
+        document.querySelector(".arjs-loader").style.display = "none";
       });
-
-      marker.addEventListener("markerLost", () => {
-        statusText.textContent = "Cari Marker Lab...";
-        statusDot.className = "status-dot";
-        closeAsset(); // Tutup modal jika marker hilang
-      });
-
-      function rotateUp() {
-        model.object3D.rotation.x -= 0.2;
-        vibrate();
-      }
-      function rotateDown() {
-        model.object3D.rotation.x += 0.2;
-        vibrate();
-      }
-      function rotateLeft() {
-        model.object3D.rotation.y -= 0.2;
-        vibrate();
-      }
-      function rotateRight() {
-        model.object3D.rotation.y += 0.2;
-        vibrate();
-      }
-
-      function resetRotation() {
-        model.setAttribute("rotation", "0 0 0");
-        vibrate();
-      }
-
-      function toggleUI() {
-        const cp = document.getElementById("controlPanel");
-        cp.style.display = cp.style.display === "none" ? "block" : "none";
-      }
-
-      function vibrate() {
-        if ("vibrate" in navigator) navigator.vibrate(10);
-      }
     </script>
   </body>
 </html>
