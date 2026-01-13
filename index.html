@@ -29,12 +29,22 @@
         pointer-events: auto; /* Tombol bisa diklik */
       }
 
+      /* Container tombol arah (D-Pad style) */
+      .d-pad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        background: rgba(0,0,0,0.1);
+        padding: 5px;
+        border-radius: 50%;
+      }
+
       /* Base Button Style */
       .btn-control {
-        width: 50px; height: 50px; 
+        width: 45px; height: 45px; 
         background: rgba(255, 255, 255, 0.95);
         border: none; border-radius: 50%; 
-        font-size: 20px; font-weight: bold;
+        font-size: 18px; font-weight: bold;
         color: #333; 
         box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
         cursor: pointer;
@@ -44,11 +54,13 @@
       }
       .btn-control:active { transform: scale(0.9); background: #f0f0f0; }
       
-      /* Icon adjustments */
-      .icon-rotate { font-size: 24px; }
-
-      /* Divider untuk memisahkan grup tombol */
-      .divider { height: 5px; }
+      .zoom-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
 
       /* Modal Info */
       #infoModal {
@@ -100,7 +112,7 @@
           this.el.addEventListener('click', (evt) => {
             const id = this.el.getAttribute('data-key');
             
-            // Visual Feedback
+            // Visual Feedback: Mencari sphere visual di parent yang sama
             const parent = this.el.parentNode;
             const visualSphere = parent.querySelector('.visual-sphere');
             if (visualSphere) {
@@ -117,43 +129,53 @@
         }
       });
 
-      // 2. KOMPONEN ROTASI SENTUH (SWIPE)
+      // 2. KOMPONEN ROTASI SENTUH (2 SUMBU: X dan Y)
       AFRAME.registerComponent('rotate-on-touch', {
         schema: { speed: { default: 0.8 } },
         init: function () {
           this.isDragging = false;
-          this.startX = 0;
-          this.currentRotationY = 0;
-          const canvas = this.el.sceneEl.canvas;
+          this.startPos = { x: 0, y: 0 };
+          this.startRot = { x: 0, y: 0 };
           
-          if (canvas) {
-              canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
-              canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
-              canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
-          } else {
-              this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
-              this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
-              this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
-          }
+          const canvas = this.el.sceneEl.canvas;
+          const target = canvas ? canvas : this.el.sceneEl;
+
+          target.addEventListener('touchstart', this.onTouchStart.bind(this));
+          target.addEventListener('touchmove', this.onTouchMove.bind(this));
+          target.addEventListener('touchend', this.onTouchEnd.bind(this));
         },
+        
         onTouchStart: function (evt) {
           if (evt.touches.length === 1) {
             this.isDragging = true;
-            this.startX = evt.touches[0].clientX;
-            this.currentRotationY = this.el.getAttribute('rotation').y;
+            this.startPos.x = evt.touches[0].clientX;
+            this.startPos.y = evt.touches[0].clientY;
+            
+            // Simpan rotasi saat ini agar gerakan mulus
+            const currentRot = this.el.getAttribute('rotation');
+            this.startRot.x = currentRot.x;
+            this.startRot.y = currentRot.y;
           }
         },
+
         onTouchMove: function (evt) {
           if (!this.isDragging) return;
           evt.preventDefault();
-          const currentX = evt.touches[0].clientX;
-          const deltaX = currentX - this.startX;
-          const newRotationY = this.currentRotationY + (deltaX * this.data.speed);
-          this.el.setAttribute('rotation', { x: 0, y: newRotationY, z: 0 });
+          
+          const deltaX = evt.touches[0].clientX - this.startPos.x;
+          const deltaY = evt.touches[0].clientY - this.startPos.y;
+
+          // Geser Kiri/Kanan (deltaX) -> Rotasi Y (Putar kiri kanan)
+          // Geser Atas/Bawah (deltaY) -> Rotasi X (Nunduk/Dangak)
+          
+          const newRotY = this.startRot.y + (deltaX * this.data.speed);
+          const newRotX = this.startRot.x + (deltaY * this.data.speed);
+
+          this.el.setAttribute('rotation', { x: newRotX, y: newRotY, z: 0 });
         },
+
         onTouchEnd: function () {
           this.isDragging = false;
-          this.currentRotationY = this.el.getAttribute('rotation').y;
         }
       });
     </script>
@@ -162,19 +184,35 @@
   <body>
     <div class="arjs-loader"><div>Memuat AR Lab...</div></div>
     
-    <div class="gesture-hint">Geser layar atau gunakan tombol untuk memutar</div>
+    <div class="gesture-hint">Geser layar (segala arah) untuk memutar</div>
 
-    <!-- UI Controls (Zoom & Rotate) -->
+    <!-- UI Controls (Zoom & 2-Axis Rotate) -->
     <div class="ui-controls">
-      <!-- Zoom -->
-      <button class="btn-control" onclick="zoomIn()" title="Perbesar">+</button>
-      <button class="btn-control" onclick="zoomOut()" title="Perkecil">-</button>
       
-      <div class="divider"></div>
+      <!-- Group Zoom -->
+      <div class="zoom-group">
+        <button class="btn-control" onclick="zoomIn()" title="Perbesar">+</button>
+        <button class="btn-control" onclick="zoomOut()" title="Perkecil">-</button>
+      </div>
       
-      <!-- Rotate Buttons -->
-      <button class="btn-control icon-rotate" onclick="manualRotate(-45)" title="Putar Kiri">&#8634;</button>
-      <button class="btn-control icon-rotate" onclick="manualRotate(45)" title="Putar Kanan">&#8635;</button>
+      <!-- Group Rotasi Manual (D-Pad) -->
+      <div class="d-pad">
+         <!-- Baris 1 -->
+         <div></div>
+         <button class="btn-control" onclick="manualRotate('x', -30)" title="Putar Atas">&#8679;</button> <!-- Up -->
+         <div></div>
+         
+         <!-- Baris 2 -->
+         <button class="btn-control" onclick="manualRotate('y', -30)" title="Putar Kiri">&#8678;</button> <!-- Left -->
+         <button class="btn-control" onclick="resetRotation()" title="Reset" style="font-size:12px;">Reset</button> <!-- Center/Reset -->
+         <button class="btn-control" onclick="manualRotate('y', 30)" title="Putar Kanan">&#8680;</button> <!-- Right -->
+
+         <!-- Baris 3 -->
+         <div></div>
+         <button class="btn-control" onclick="manualRotate('x', 30)" title="Putar Bawah">&#8681;</button> <!-- Down -->
+         <div></div>
+      </div>
+
     </div>
 
     <div id="infoModal">
@@ -185,12 +223,7 @@
       <div id="modalContent"></div>
     </div>
 
-    <!-- 
-      AR SCENE SETUP (OPTIMISASI STABILITAS)
-      - detectionMode: mono (Hanya deteksi pattern marker, lebih ringan & stabil dari mono_and_matrix)
-      - maxDetectionRate: 60 (Meningkatkan framerate deteksi agar tracking lebih lengket)
-      - sourceWidth/Height: Mengatur resolusi input video agar aspek rasio pas
-    -->
+    <!-- AR SCENE -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 60;"
@@ -199,42 +232,52 @@
       
       <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable"></a-entity>
       
-      <!-- Lighting yang lebih terang untuk membantu kamera -->
       <a-light type="ambient" intensity="1.4"></a-light>
       <a-light type="directional" position="3 5 2" intensity="1.5"></a-light>
 
-      <!-- 
-         MARKER SETUP (OPTIMISASI SMOOTHING)
-         - smooth: true
-         - smoothCount: 10 (Meningkatkan kestabilan posisi, mengurangi jitter)
-         - smoothTolerance: 0.01
-      -->
       <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
         
+        <!-- CONTAINER UTAMA -->
+        <!-- Posisi interaksi pin harus relatif terhadap container ini -->
         <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
             
             <a-entity id="labModel" gltf-model="Riki.glb" position="0 0 0" scale="0.3 0.3 0.3"></a-entity>
 
-            <!-- MARKER 1: SERVER -->
-            <a-entity position="0 0 0">
-                <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
-                <a-sphere class="visual-sphere" color="#f1c40f" radius="0.15" position="0 0.5 0" 
-                          animation="property: position; to: 0 0.55 0; dir: alternate; loop: true; dur: 1000"></a-sphere>
-                <!-- Hitbox Invisible -->
+            <!-- 
+                TIPS POSISI PIN:
+                Untuk menempatkan pin "tepat di atas aset", Anda harus mengubah atribut 'position="x y z"'.
+                - x: Kiri (-) / Kanan (+)
+                - y: Bawah (-) / Atas (+) -> Atur ini agar pin tidak tenggelam di lantai
+                - z: Depan (+) / Belakang (-)
+                
+                Gunakan trial & error dengan mengubah angka di bawah ini sampai pas dengan model 3D Anda.
+            -->
+
+            <!-- PIN 1: SERVER -->
+            <!-- Contoh: Saya geser sedikit ke atas (y=0.1) agar pas di lantai/meja -->
+            <a-entity position="0 0.1 0">
+                <!-- Tiang Pin -->
+                <a-cylinder color="white" height="0.4" radius="0.01" position="0 0.2 0"></a-cylinder>
+                <!-- Kepala Pin -->
+                <a-sphere class="visual-sphere" color="#f1c40f" radius="0.1" position="0 0.4 0" 
+                          animation="property: position; to: 0 0.45 0; dir: alternate; loop: true; dur: 1000"></a-sphere>
+                <!-- Hitbox Invisible (Untuk mempermudah klik) -->
                 <a-cylinder class="clickable" click-handler data-key="server" 
-                            color="red" height="0.6" radius="0.25" position="0 0.3 0" 
+                            color="red" height="0.5" radius="0.2" position="0 0.25 0" 
                             material="opacity: 0; transparent: true"></a-cylinder>
-                <a-text value="Server" position="0 0.8 0" align="center" scale="2 2 2" color="white" look-at="[camera]"></a-text>
+                <!-- Label -->
+                <a-text value="Server" position="0 0.6 0" align="center" scale="1.5 1.5 1.5" color="white" look-at="[camera]"></a-text>
             </a-entity>
 
-            <!-- MARKER 2: PC SISWA -->
-            <a-entity position="1 0 0.5">
-                <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
-                <a-sphere class="visual-sphere" color="#2ecc71" radius="0.15" position="0 0.5 0"></a-sphere>
-                <!-- Hitbox Invisible -->
+            <!-- PIN 2: PC SISWA -->
+            <!-- Contoh: Saya geser z=0.5 (lebih dekat ke kamera) dan x=0.8 (kanan) -->
+            <a-entity position="0.8 0.1 0.5">
+                <a-cylinder color="white" height="0.4" radius="0.01" position="0 0.2 0"></a-cylinder>
+                <a-sphere class="visual-sphere" color="#2ecc71" radius="0.1" position="0 0.4 0"></a-sphere>
                 <a-cylinder class="clickable" click-handler data-key="pc1" 
-                            color="red" height="0.6" radius="0.25" position="0 0.3 0" 
+                            color="red" height="0.5" radius="0.2" position="0 0.25 0" 
                             material="opacity: 0; transparent: true"></a-cylinder>
+                <a-text value="PC-01" position="0 0.6 0" align="center" scale="1.5 1.5 1.5" color="white" look-at="[camera]"></a-text>
             </a-entity>
 
         </a-entity>
@@ -245,42 +288,49 @@
 
     <script>
       const db = {
-        'server': { name: "Server Dosen (Main)", spec: "Intel Xeon E5-2600<br>64GB DDR4 ECC RAM<br>2TB NVMe SSD", status: "ONLINE", bg: "bg-green" },
-        'pc1': { name: "Workstation Siswa 01", spec: "Intel Core i5-12400F<br>16GB RAM<br>GTX 1650 4GB", status: "MAINTENANCE", bg: "bg-red" }
+        'server': { name: "Server Dosen", spec: "Xeon E5-2600, 64GB RAM", status: "ONLINE", bg: "bg-green" },
+        'pc1': { name: "PC Siswa 01", spec: "i5-12400F, 16GB RAM", status: "MAINTENANCE", bg: "bg-red" }
       };
 
       let scale = 1;
       const modelContainer = document.getElementById('modelContainer');
 
-      // Zoom
-      function zoomIn() { 
-        if(scale < 3) { scale += 0.2; updateScale(); }
-      }
-      function zoomOut() { 
-        if(scale > 0.2) { scale -= 0.2; updateScale(); }
-      }
-      function updateScale() { 
-        if(modelContainer) { modelContainer.setAttribute('scale', `${scale} ${scale} ${scale}`); }
-      }
+      // Zoom Logic
+      function zoomIn() { if(scale < 3) { scale += 0.2; updateScale(); }}
+      function zoomOut() { if(scale > 0.2) { scale -= 0.2; updateScale(); }}
+      function updateScale() { if(modelContainer) modelContainer.setAttribute('scale', `${scale} ${scale} ${scale}`); }
 
-      // Manual Rotation Logic (Tombol)
-      function manualRotate(angle) {
+      // Manual Rotation Logic (2 Axis)
+      function manualRotate(axis, angle) {
         if(modelContainer) {
             const currentRot = modelContainer.getAttribute('rotation');
-            const newY = currentRot.y + angle;
-            // Gunakan animasi agar halus
+            let newRot = { ...currentRot }; // Clone object
+
+            if (axis === 'x') newRot.x += angle;
+            if (axis === 'y') newRot.y += angle;
+
+            // Animasi Rotasi
             modelContainer.setAttribute('animation', {
                 property: 'rotation',
-                to: `0 ${newY} 0`,
-                dur: 500,
+                to: `${newRot.x} ${newRot.y} 0`,
+                dur: 400,
                 easing: 'easeOutQuad'
             });
-            // Update rotasi langsung setelah animasi agar state sinkron
+
+            // Update state setelah animasi selesai
             setTimeout(() => {
                 modelContainer.removeAttribute('animation');
-                modelContainer.setAttribute('rotation', `0 ${newY} 0`);
-            }, 500);
+                modelContainer.setAttribute('rotation', newRot);
+            }, 400);
         }
+      }
+
+      function resetRotation() {
+          if(modelContainer) {
+            modelContainer.setAttribute('rotation', '0 0 0');
+            scale = 1; 
+            updateScale();
+          }
       }
 
       // Show Data
@@ -290,11 +340,8 @@
         if (data) {
           document.getElementById('modalTitle').innerText = data.name;
           document.getElementById('modalContent').innerHTML = `
-            <div class="spec-row">
-                <div style="margin-bottom:4px; color:#7f8c8d; font-size:12px;">SPESIFIKASI</div>
-                <strong>${data.spec}</strong>
-            </div>
-            <div class="spec-row" style="margin-top:15px;">
+            <div class="spec-row"><strong>Spesifikasi:</strong><br>${data.spec}</div>
+            <div class="spec-row" style="margin-top:10px;">
                 <span class="status-badge ${data.bg}">${data.status}</span>
             </div>
           `;
@@ -302,10 +349,7 @@
         }
       }
 
-      window.closeModal = function() {
-        document.getElementById('infoModal').style.display = 'none';
-      }
-
+      window.closeModal = function() { document.getElementById('infoModal').style.display = 'none'; }
       window.addEventListener('load', () => {
         const loader = document.querySelector('.arjs-loader');
         if(loader) setTimeout(() => { loader.style.display = 'none'; }, 2000);
