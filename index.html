@@ -6,9 +6,9 @@
 
     <!-- A-FRAME -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- AR.js -->
+    <!-- AR.js (Versi stabil) -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-    <!-- A-Frame Look-At Component (agar teks selalu menghadap kamera) -->
+    <!-- A-Frame Look-At Component -->
     <script src="https://unpkg.com/aframe-look-at-component@0.8.0/dist/aframe-look-at-component.min.js"></script>
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -29,19 +29,26 @@
         pointer-events: auto; /* Tombol bisa diklik */
       }
 
-      /* Zoom Buttons */
-      .btn-zoom {
+      /* Base Button Style */
+      .btn-control {
         width: 50px; height: 50px; 
-        background: rgba(255, 255, 255, 0.9);
+        background: rgba(255, 255, 255, 0.95);
         border: none; border-radius: 50%; 
-        font-size: 24px; font-weight: bold;
+        font-size: 20px; font-weight: bold;
         color: #333; 
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3); 
         cursor: pointer;
         display: flex; align-items: center; justify-content: center;
-        transition: transform 0.1s;
+        transition: all 0.1s ease;
+        backdrop-filter: blur(4px);
       }
-      .btn-zoom:active { transform: scale(0.9); background: #eee; }
+      .btn-control:active { transform: scale(0.9); background: #f0f0f0; }
+      
+      /* Icon adjustments */
+      .icon-rotate { font-size: 24px; }
+
+      /* Divider untuk memisahkan grup tombol */
+      .divider { height: 5px; }
 
       /* Modal Info */
       #infoModal {
@@ -53,7 +60,7 @@
         padding: 25px;
         box-sizing: border-box; 
         box-shadow: 0 -5px 20px rgba(0,0,0,0.3);
-        z-index: 2000; /* Z-Index sangat tinggi */
+        z-index: 2000; 
         animation: slideUp 0.3s ease-out;
       }
       
@@ -79,8 +86,9 @@
       /* Instruksi Gesture */
       .gesture-hint {
         position: fixed; top: 20px; width: 100%; text-align: center;
-        color: rgba(255,255,255,0.7); pointer-events: none; z-index: 500;
-        font-size: 14px; text-shadow: 1px 1px 2px black;
+        color: rgba(255,255,255,0.8); pointer-events: none; z-index: 500;
+        font-size: 14px; text-shadow: 1px 1px 3px black;
+        background: rgba(0,0,0,0.3); padding: 5px;
       }
     </style>
 
@@ -89,106 +97,86 @@
       // 1. KOMPONEN KLIK (INTERAKSI OBJEK)
       AFRAME.registerComponent('click-handler', {
         init: function () {
-          // Listen 'click' event
           this.el.addEventListener('click', (evt) => {
             const id = this.el.getAttribute('data-key');
-            console.log("Clicked:", id); 
-
-            // LOGIKA VISUAL: Cari bola visual di sebelah hitbox ini
-            // Struktur: Parent -> [VisualStick, VisualSphere, Hitbox(this)]
+            
+            // Visual Feedback
             const parent = this.el.parentNode;
             const visualSphere = parent.querySelector('.visual-sphere');
-
             if (visualSphere) {
-                // Efek Visual (Flash Biru pada bola)
                 const oldColor = visualSphere.getAttribute('material').color;
-                visualSphere.setAttribute('material', 'color', '#3498db'); // Biru
+                visualSphere.setAttribute('material', 'color', '#3498db');
                 setTimeout(() => {
                   visualSphere.setAttribute('material', 'color', oldColor);
                 }, 300);
             }
 
-            // Tampilkan Modal
+            // Show Data
             showData(id);
           });
         }
       });
 
-      // 2. KOMPONEN ROTASI (SWIPE GESTURE) - DIPERBAIKI
+      // 2. KOMPONEN ROTASI SENTUH (SWIPE)
       AFRAME.registerComponent('rotate-on-touch', {
-        schema: {
-          speed: { default: 0.8 } // Sedikit dipercepat
-        },
+        schema: { speed: { default: 0.8 } },
         init: function () {
           this.isDragging = false;
           this.startX = 0;
           this.currentRotationY = 0;
-
-          // Event Listeners pada Scene
           const canvas = this.el.sceneEl.canvas;
           
-          // Menggunakan canvas event listener agar lebih akurat
           if (canvas) {
               canvas.addEventListener('touchstart', this.onTouchStart.bind(this));
               canvas.addEventListener('touchmove', this.onTouchMove.bind(this));
               canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
           } else {
-              // Fallback jika canvas belum siap
               this.el.sceneEl.addEventListener('touchstart', this.onTouchStart.bind(this));
               this.el.sceneEl.addEventListener('touchmove', this.onTouchMove.bind(this));
               this.el.sceneEl.addEventListener('touchend', this.onTouchEnd.bind(this));
           }
         },
-        
         onTouchStart: function (evt) {
           if (evt.touches.length === 1) {
             this.isDragging = true;
             this.startX = evt.touches[0].clientX;
-            const rotation = this.el.getAttribute('rotation');
-            this.currentRotationY = rotation.y;
+            this.currentRotationY = this.el.getAttribute('rotation').y;
           }
         },
-
         onTouchMove: function (evt) {
           if (!this.isDragging) return;
-          
-          // Mencegah scroll browser saat memutar model
-          evt.preventDefault(); 
-          
+          evt.preventDefault();
           const currentX = evt.touches[0].clientX;
           const deltaX = currentX - this.startX;
           const newRotationY = this.currentRotationY + (deltaX * this.data.speed);
-          
-          this.el.setAttribute('rotation', {
-            x: 0,
-            y: newRotationY,
-            z: 0
-          });
+          this.el.setAttribute('rotation', { x: 0, y: newRotationY, z: 0 });
         },
-
         onTouchEnd: function () {
           this.isDragging = false;
-          const rotation = this.el.getAttribute('rotation');
-          this.currentRotationY = rotation.y;
+          this.currentRotationY = this.el.getAttribute('rotation').y;
         }
       });
     </script>
   </head>
 
   <body>
-    <!-- Overlay Loading -->
     <div class="arjs-loader"><div>Memuat AR Lab...</div></div>
     
-    <!-- Hint -->
-    <div class="gesture-hint">Geser layar kiri/kanan untuk memutar</div>
+    <div class="gesture-hint">Geser layar atau gunakan tombol untuk memutar</div>
 
-    <!-- UI Zoom Buttons -->
+    <!-- UI Controls (Zoom & Rotate) -->
     <div class="ui-controls">
-      <button class="btn-zoom" onclick="zoomIn()">+</button>
-      <button class="btn-zoom" onclick="zoomOut()">-</button>
+      <!-- Zoom -->
+      <button class="btn-control" onclick="zoomIn()" title="Perbesar">+</button>
+      <button class="btn-control" onclick="zoomOut()" title="Perkecil">-</button>
+      
+      <div class="divider"></div>
+      
+      <!-- Rotate Buttons -->
+      <button class="btn-control icon-rotate" onclick="manualRotate(-45)" title="Putar Kiri">&#8634;</button>
+      <button class="btn-control icon-rotate" onclick="manualRotate(45)" title="Putar Kanan">&#8635;</button>
     </div>
 
-    <!-- Modal Informasi -->
     <div id="infoModal">
       <div class="modal-header">
         <h3 class="modal-title" id="modalTitle">Info Aset</h3>
@@ -197,68 +185,53 @@
       <div id="modalContent"></div>
     </div>
 
-    <!-- SCENE AR -->
+    <!-- 
+      AR SCENE SETUP (OPTIMISASI STABILITAS)
+      - detectionMode: mono (Hanya deteksi pattern marker, lebih ringan & stabil dari mono_and_matrix)
+      - maxDetectionRate: 60 (Meningkatkan framerate deteksi agar tracking lebih lengket)
+      - sourceWidth/Height: Mengatur resolusi input video agar aspek rasio pas
+    -->
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-      renderer="logarithmicDepthBuffer: true; colorManagement: true;"
+      arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 60;"
+      renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
       vr-mode-ui="enabled: false">
       
-      <!-- 
-        CURSOR WAJIB: 
-        rayOrigin: mouse membuat layar HP responsif terhadap sentuhan.
-        raycaster: objects hanya mendeteksi class .clickable.
-      -->
       <a-entity cursor="rayOrigin: mouse; fuse: false" raycaster="objects: .clickable"></a-entity>
-
-      <!-- LIGHTING -->
-      <a-light type="ambient" intensity="1.2"></a-light>
+      
+      <!-- Lighting yang lebih terang untuk membantu kamera -->
+      <a-light type="ambient" intensity="1.4"></a-light>
       <a-light type="directional" position="3 5 2" intensity="1.5"></a-light>
 
-      <!-- MARKER -->
+      <!-- 
+         MARKER SETUP (OPTIMISASI SMOOTHING)
+         - smooth: true
+         - smoothCount: 10 (Meningkatkan kestabilan posisi, mengurangi jitter)
+         - smoothTolerance: 0.01
+      -->
       <a-marker type="pattern" url="marker-lab.patt" id="marker" smooth="true" smoothCount="10" smoothTolerance="0.01" smoothThreshold="5">
         
-        <!-- CONTAINER UTAMA (Yang bisa diputar) -->
         <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
             
-            <!-- Model 3D -->
             <a-entity id="labModel" gltf-model="Riki.glb" position="0 0 0" scale="0.3 0.3 0.3"></a-entity>
 
-            <!-- 
-               MARKER 1: SERVER 
-               Posisi: 0, 0, 0 (Dasar lantai)
-            -->
+            <!-- MARKER 1: SERVER -->
             <a-entity position="0 0 0">
-                <!-- 1. Tiang Putih -->
                 <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
-                
-                <!-- 2. Bola Visual (Kuning) -->
                 <a-sphere class="visual-sphere" color="#f1c40f" radius="0.15" position="0 0.5 0" 
                           animation="property: position; to: 0 0.55 0; dir: alternate; loop: true; dur: 1000"></a-sphere>
-                
-                <!-- 3. HITBOX TRANSPARAN (Area klik besar) -->
-                <!-- Ini yang mendeteksi klik. Radius 0.25 lebih mudah disentuh dari 0.02 -->
+                <!-- Hitbox Invisible -->
                 <a-cylinder class="clickable" click-handler data-key="server" 
                             color="red" height="0.6" radius="0.25" position="0 0.3 0" 
                             material="opacity: 0; transparent: true"></a-cylinder>
-                
-                <!-- Label Teks -->
                 <a-text value="Server" position="0 0.8 0" align="center" scale="2 2 2" color="white" look-at="[camera]"></a-text>
             </a-entity>
 
-
-            <!-- 
-               MARKER 2: PC SISWA 
-               Posisi: 1, 0, 0.5
-            -->
+            <!-- MARKER 2: PC SISWA -->
             <a-entity position="1 0 0.5">
-                <!-- 1. Tiang Putih -->
                 <a-cylinder color="white" height="0.5" radius="0.02" position="0 0.25 0"></a-cylinder>
-                
-                <!-- 2. Bola Visual (Hijau) -->
                 <a-sphere class="visual-sphere" color="#2ecc71" radius="0.15" position="0 0.5 0"></a-sphere>
-                
-                <!-- 3. HITBOX TRANSPARAN (Area klik besar) -->
+                <!-- Hitbox Invisible -->
                 <a-cylinder class="clickable" click-handler data-key="pc1" 
                             color="red" height="0.6" radius="0.25" position="0 0.3 0" 
                             material="opacity: 0; transparent: true"></a-cylinder>
@@ -270,43 +243,50 @@
       <a-entity camera></a-entity>
     </a-scene>
 
-    <!-- LOGIKA JAVASCRIPT UI -->
     <script>
-      // Database Data
       const db = {
         'server': { name: "Server Dosen (Main)", spec: "Intel Xeon E5-2600<br>64GB DDR4 ECC RAM<br>2TB NVMe SSD", status: "ONLINE", bg: "bg-green" },
         'pc1': { name: "Workstation Siswa 01", spec: "Intel Core i5-12400F<br>16GB RAM<br>GTX 1650 4GB", status: "MAINTENANCE", bg: "bg-red" }
       };
 
-      // Zoom Logic
       let scale = 1;
       const modelContainer = document.getElementById('modelContainer');
 
+      // Zoom
       function zoomIn() { 
-        if(scale < 3) {
-          scale += 0.2; 
-          updateScale(); 
-        }
+        if(scale < 3) { scale += 0.2; updateScale(); }
       }
-      
       function zoomOut() { 
-        if(scale > 0.2) {
-          scale -= 0.2; 
-          updateScale(); 
-        }
+        if(scale > 0.2) { scale -= 0.2; updateScale(); }
       }
-      
       function updateScale() { 
+        if(modelContainer) { modelContainer.setAttribute('scale', `${scale} ${scale} ${scale}`); }
+      }
+
+      // Manual Rotation Logic (Tombol)
+      function manualRotate(angle) {
         if(modelContainer) {
-          modelContainer.setAttribute('scale', `${scale} ${scale} ${scale}`); 
+            const currentRot = modelContainer.getAttribute('rotation');
+            const newY = currentRot.y + angle;
+            // Gunakan animasi agar halus
+            modelContainer.setAttribute('animation', {
+                property: 'rotation',
+                to: `0 ${newY} 0`,
+                dur: 500,
+                easing: 'easeOutQuad'
+            });
+            // Update rotasi langsung setelah animasi agar state sinkron
+            setTimeout(() => {
+                modelContainer.removeAttribute('animation');
+                modelContainer.setAttribute('rotation', `0 ${newY} 0`);
+            }, 500);
         }
       }
 
-      // Show Data Logic
+      // Show Data
       window.showData = function(id) {
         const data = db[id];
         const modal = document.getElementById('infoModal');
-        
         if (data) {
           document.getElementById('modalTitle').innerText = data.name;
           document.getElementById('modalContent').innerHTML = `
@@ -319,8 +299,6 @@
             </div>
           `;
           modal.style.display = 'block';
-        } else {
-            console.warn("Data ID tidak ditemukan:", id);
         }
       }
 
@@ -328,14 +306,9 @@
         document.getElementById('infoModal').style.display = 'none';
       }
 
-      // Hide Loader
       window.addEventListener('load', () => {
         const loader = document.querySelector('.arjs-loader');
-        if(loader) {
-            setTimeout(() => {
-                loader.style.display = 'none';
-            }, 2000); 
-        }
+        if(loader) setTimeout(() => { loader.style.display = 'none'; }, 2000);
       });
     </script>
   </body>
