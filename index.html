@@ -6,7 +6,7 @@
 
     <!-- A-FRAME -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    <!-- AR.js (Versi Ringan) -->
+    <!-- AR.js -->
     <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <meta
@@ -139,10 +139,10 @@
       // 1. KOMPONEN KLIK (INTERAKSI)
       AFRAME.registerComponent("click-handler", {
         init: function () {
-          // Event click dari Raycaster
+          // Menggunakan 'click' event standar A-Frame
           this.el.addEventListener("click", (evt) => {
             const id = this.el.getAttribute("data-key");
-            console.log("Clicked:", id);
+            console.log("Bola diklik:", id); // Cek Console jika tidak muncul
 
             // Efek Visual (Flash Putih)
             const oldColor = this.el.getAttribute("color");
@@ -157,9 +157,9 @@
         },
       });
 
-      // 2. KOMPONEN ROTASI (SWIPE 2 ARAH: X dan Y)
+      // 2. KOMPONEN ROTASI (SWIPE 2 ARAH)
       AFRAME.registerComponent("rotate-on-touch", {
-        schema: { speed: { default: 0.8 } }, // Kecepatan sedikit dinaikkan
+        schema: { speed: { default: 0.8 } },
         init: function () {
           this.isDragging = false;
           this.startX = 0;
@@ -176,8 +176,6 @@
             this.isDragging = true;
             this.startX = evt.touches[0].clientX;
             this.startY = evt.touches[0].clientY;
-            
-            // Simpan rotasi saat ini
             const rotation = this.el.getAttribute("rotation");
             this.currentRotationY = rotation.y;
             this.currentRotationX = rotation.x;
@@ -185,25 +183,14 @@
         },
         onTouchMove: function (evt) {
           if (!this.isDragging) return;
-          
           const deltaX = evt.touches[0].clientX - this.startX;
           const deltaY = evt.touches[0].clientY - this.startY;
-
-          // Hitung rotasi baru
-          // Geser Kiri-Kanan (X) mengubah Rotasi Y
-          // Geser Atas-Bawah (Y) mengubah Rotasi X
           const newRotationY = this.currentRotationY + deltaX * this.data.speed;
           const newRotationX = this.currentRotationX + deltaY * this.data.speed;
-
-          this.el.setAttribute("rotation", { 
-            x: newRotationX, 
-            y: newRotationY, 
-            z: 0 
-          });
+          this.el.setAttribute("rotation", { x: newRotationX, y: newRotationY, z: 0 });
         },
         onTouchEnd: function () {
           this.isDragging = false;
-          // Update posisi terakhir
           const rotation = this.el.getAttribute("rotation");
           this.currentRotationY = rotation.y;
           this.currentRotationX = rotation.x;
@@ -215,7 +202,7 @@
   <body>
     <!-- Overlay Loading -->
     <div class="arjs-loader"><div>Memuat Kamera...</div></div>
-    <div class="gesture-hint">Geser layar untuk memutar • Arahkan ke Marker</div>
+    <div class="gesture-hint">Geser layar untuk memutar • Klik bola untuk info</div>
 
     <!-- UI Zoom Buttons -->
     <div class="ui-controls">
@@ -232,26 +219,13 @@
       <div id="modalContent" class="spec-content">Deskripsi...</div>
     </div>
 
-    <!-- SCENE AR 
-         OPTIMASI KAMERA: 
-         - detectionMode: mono (Hanya deteksi pattern, tidak cari barcode/matrix, lebih cepat)
-         - maxDetectionRate: 30 (Mengurangi beban CPU HP)
-         - sourceWidth/Height: Mengatur resolusi input agar tidak terlalu berat
-    -->
+    <!-- SCENE AR -->
     <a-scene
       embedded
       arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; maxDetectionRate: 30;"
       renderer="logarithmicDepthBuffer: true; colorManagement: true; precision: medium;"
       vr-mode-ui="enabled: false"
     >
-      <!-- CURSOR MOUSE/TOUCH 
-           rayOrigin: mouse sangat penting untuk deteksi klik di HP
-      -->
-      <a-entity
-        cursor="rayOrigin: mouse; fuse: false"
-        raycaster="objects: .clickable"
-      ></a-entity>
-
       <!-- LIGHTING -->
       <a-light type="ambient" intensity="1"></a-light>
       <a-light type="directional" position="3 5 2" intensity="1.5"></a-light>
@@ -266,7 +240,7 @@
         smoothTolerance="0.01"
         smoothThreshold="5"
       >
-        <!-- CONTAINER MODEL (Rotasi & Scale) -->
+        <!-- CONTAINER MODEL -->
         <a-entity id="modelContainer" scale="1 1 1" rotate-on-touch>
           
           <!-- MODEL UTAMA -->
@@ -277,15 +251,15 @@
             scale="0.3 0.3 0.3"
           >
             <!-- 
-                 HOTSPOTS (BOLA INTERAKSI)
-                 Radius sedikit dibesarkan agar lebih mudah dipencet di layar HP 
+                 PERBAIKAN: Radius diperbesar menjadi 0.5 - 0.6 
+                 agar mudah diklik di HP (kompensasi skala 0.3 model induk)
             -->
 
             <!-- 1. PC Admin -->
             <a-sphere
               class="clickable" click-handler data-key="pc_admin"
               position="-0.54 0.93 0.1"
-              radius="0.2" color="#e74c3c" opacity="0.8"
+              radius="0.8" color="#e74c3c" opacity="0.8"
               animation="property: scale; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000"
             ></a-sphere>
 
@@ -293,71 +267,79 @@
             <a-sphere
               class="clickable" click-handler data-key="meja_tengah"
               position="3.62 0.34 -4.15"
-              radius="0.25" color="#e74c3c" opacity="0.8"
+              radius="0.8" color="#e74c3c" opacity="0.7"
             ></a-sphere>
 
             <!-- 3. PC Station -->
             <a-sphere
               class="clickable" click-handler data-key="pc_station"
               position="0.34 1.10 -5.80"
-              radius="0.2" color="#e74c3c" opacity="0.8"
+              radius="0.8" color="#e74c3c" opacity="0.8"
             ></a-sphere>
 
             <!-- 4. Lantai Karpet Hijau -->
             <a-sphere
               class="clickable" click-handler data-key="lantai_hijau"
               position="6.618 0.1 -5.832"
-              radius="0.3" color="#2ecc71" opacity="0.8"
+              radius="0.8" color="#2ecc71" opacity="0.7"
             ></a-sphere>
 
             <!-- 5. Meja Laptop -->
             <a-sphere
               class="clickable" click-handler data-key="meja_laptop"
               position="0.482 0.946 -2.053"
-              radius="0.2" color="#e74c3c" opacity="0.8"
+              radius="0.8" color="#e74c3c" opacity="0.8"
             ></a-sphere>
 
             <!-- 6. Kursi Lab -->
             <a-sphere
               class="clickable" click-handler data-key="kursi_lab"
               position="0.779 0.628 -2.968"
-              radius="0.25" color="#3498db" opacity="0.8"
+              radius="0.8" color="#3498db" opacity="0.8"
             ></a-sphere>
 
           </a-entity>
         </a-entity>
       </a-marker>
 
-      <a-entity camera></a-entity>
+      <!-- CAMERA & CURSOR -->
+      <!-- Cursor diletakkan di dalam kamera agar interaksi lebih stabil -->
+      <a-entity camera>
+        <a-entity 
+          cursor="rayOrigin: mouse; fuse: false" 
+          raycaster="objects: .clickable"
+        ></a-entity>
+      </a-entity>
     </a-scene>
 
-    <!-- LOGIKA JAVASCRIPT & DATABASE -->
+    <!-- LOGIKA JAVASCRIPT & DATABASE UPDATE -->
     <script>
-      // Database Info
+      // Database Info - SUDAH DIUPDATE SESUAI REQUEST
       const db = {
         pc_admin: {
           title: "PC Admin",
-          desc: "<strong>Spesifikasi:</strong><br>Intel Core i7 Gen 12<br>RAM 32GB<br>SSD 1TB<br><br>PC utama untuk kontrol server lab dan pemantauan jaringan.",
+          desc: "<strong>Spesifikasi:</strong><br>Intel Core i7 Gen 12, RAM 32GB.<br>Berfungsi sebagai kontrol server utama.",
         },
         meja_tengah: {
           title: "Meja Tengah",
-          desc: "Area diskusi kelompok dan persiapan alat praktikum. Dilengkapi terminal listrik terintegrasi.",
+          desc: "Meja diskusi kelompok. Material kayu solid dengan lapisan HPL anti gores.",
         },
         pc_station: {
           title: "PC Station",
-          desc: "<strong>Workstation Siswa:</strong><br>Intel Core i5<br>RAM 16GB<br>GPU RTX 3060<br><br>Digunakan untuk rendering dan simulasi berat.",
+          desc: "<strong>Workstation Siswa:</strong><br>Intel Core i5, RTX 3060.<br>Digunakan untuk rendering 3D.",
         },
         lantai_hijau: {
           title: "Lantai Karpet Hijau",
-          desc: "Area lantai khusus yang dilapisi karpet antistatis untuk kenyamanan dan keamanan komponen elektronik.",
+          desc: "Karpet antistatis untuk meredam suara dan keamanan komponen elektronik.",
         },
         meja_laptop: {
           title: "Meja Laptop",
-          desc: "Meja kerja modular yang dirancang khusus untuk penggunaan laptop portabel (BYOD).",
+          desc: "Meja modular untuk pengguna laptop (BYOD).",
         },
         kursi_lab: {
           title: "Kursi Lab",
-          desc: "Kursi ergonomis dengan pengaturan tinggi-rendah untuk menunjang kesehatan punggung saat praktikum lama.",
+          // Teks Spesifik yang Anda Minta:
+          desc: "Kursi terbuat dari plastik, sejak :tanggal 19 01 2025<br><br>Dilengkapi hidrolik pengatur ketinggian.",
         },
       };
 
@@ -392,7 +374,6 @@
 
         if (data) {
           document.getElementById("modalTitle").innerText = data.title;
-          // Gunakan innerHTML agar tag <br> dan <strong> terbaca
           document.getElementById("modalContent").innerHTML = data.desc;
           modal.style.display = "block";
         } else {
@@ -404,11 +385,9 @@
         document.getElementById("infoModal").style.display = "none";
       };
 
-      // Hide Loader
       window.addEventListener("load", () => {
         const loader = document.querySelector(".arjs-loader");
         if (loader) {
-          // Loader hilang saat halaman selesai dimuat
           setTimeout(() => {
             loader.style.display = "none";
           }, 1500);
